@@ -1,0 +1,31 @@
+# Python & Environment
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+venv/
+env/
+ENV/
+
+# Data & Persistence Caches (Rebuilt on initialization)
+data/chroma_db/
+data/bm25_index.pkl
+data/documents/
+data/test_tmp/
+data/test_graph_tmp/
+*.log
+
+# Pytest & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Scratch artifacts
+scratch/
