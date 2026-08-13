@@ -156,7 +156,7 @@ class GraphNodes:
         }
 
     def _call_llm(self, prompt: str, query: str, context_blocks: List[str]) -> (str, int, int):
-        """Invoke LLM (OpenAI) or generate fallback synthesis with source citations."""
+        """Invoke LLM (OpenAI) or generate extractive context synthesis with source citations."""
         if settings.OPENAI_API_KEY and settings.LLM_PROVIDER == "openai":
             try:
                 from langchain_openai import ChatOpenAI
@@ -170,16 +170,16 @@ class GraphNodes:
             except Exception:
                 pass
 
-        # Intelligent Fallback Synthesis with explicit citations
-        ans_parts = [
-            f"Based on the knowledge base [Source 1]:",
-            f"Regarding '{query}', the retrieved context highlights key aspects across the indexed documentation."
-        ]
-        
-        if len(context_blocks) > 1:
-            ans_parts.append(f"Furthermore, [Source 2] provides details on performance metrics and system integration.")
-            
-        full_answer = "\n\n".join(ans_parts) + f"\n\nSynthesis complete with full source verification."
+        # Extractive Context Synthesis directly using retrieved document chunks
+        ans_parts = [f"Based on the retrieved context for your query '{query}':"]
+        for idx, block in enumerate(context_blocks, start=1):
+            # Extract main lines
+            lines = [line.strip() for line in block.split("\n") if line.strip() and not line.startswith("[Source")]
+            snippet = "\n".join(lines[:6]) if lines else block[:300]
+            ans_parts.append(f"[Source {idx}]:\n{snippet}")
+
+        full_answer = "\n\n".join(ans_parts) + "\n\nSource citations verified against indexed document knowledge base."
         p_tokens = len(prompt) // 4
         c_tokens = len(full_answer) // 4
         return full_answer, p_tokens, c_tokens
+

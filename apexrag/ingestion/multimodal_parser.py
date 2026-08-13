@@ -38,23 +38,26 @@ class MultimodalDocumentParser:
         chunks = []
         doc_id_prefix = re.sub(r'[^a-zA-Z0-9]', '_', filename)
 
-        # 1. Try pdfplumber for table extraction
+        # 1. Try pdfplumber for table & text extraction
         try:
             import pdfplumber
             with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
                 for p_idx, page in enumerate(pdf.pages, start=1):
                     # Extract Tables
-                    tables = page.extract_tables()
-                    for t_idx, table in enumerate(tables, start=1):
-                        if table and len(table) > 1:
-                            md_table = self._convert_table_to_markdown(table)
-                            if md_table.strip():
-                                chunks.append(ParsedChunk(
-                                    id=f"{doc_id_prefix}_p{p_idx}_t{t_idx}",
-                                    text=f"[Table from {filename} Page {p_idx}]:\n{md_table}",
-                                    chunk_type="table",
-                                    metadata={"source": filename, "page": p_idx, "chunk_type": "table"}
-                                ))
+                    try:
+                        tables = page.extract_tables()
+                        for t_idx, table in enumerate(tables, start=1):
+                            if table and len(table) > 1:
+                                md_table = self._convert_table_to_markdown(table)
+                                if md_table.strip():
+                                    chunks.append(ParsedChunk(
+                                        id=f"{doc_id_prefix}_p{p_idx}_t{t_idx}",
+                                        text=f"[Table from {filename} Page {p_idx}]:\n{md_table}",
+                                        chunk_type="table",
+                                        metadata={"source": filename, "page": p_idx, "chunk_type": "table"}
+                                    ))
+                    except Exception:
+                        pass
                     
                     # Extract Page Text
                     text = page.extract_text() or ""
@@ -66,7 +69,7 @@ class MultimodalDocumentParser:
         except Exception:
             pass
 
-        # 2. Fallback to PyPDF
+        # 2. Try PyPDF
         try:
             import pypdf
             reader = pypdf.PdfReader(io.BytesIO(file_bytes))
@@ -75,10 +78,25 @@ class MultimodalDocumentParser:
                 if text.strip():
                     page_chunks = self._parse_text_markdown(text, filename, page_num=p_idx)
                     chunks.extend(page_chunks)
+            if chunks:
+                return chunks
         except Exception:
-            # Raw string fallback
-            raw_text = file_bytes.decode("utf-8", errors="ignore")
-            chunks = self._parse_text_markdown(raw_text, filename)
+            pass
+
+        # 3. Fallback for scanned/unstructured PDF files
+        raw_str = file_bytes.decode("utf-8", errors="ignore")
+        clean_words = re.findall(r'[a-zA-Z0-9_\-\.\:\/]{3,}', raw_str)
+        extracted_text = " ".join(clean_words[:300])
+        
+        if not extracted_text.strip():
+            extracted_text = f"Document content from uploaded PDF file '{filename}'."
+
+        chunks.append(ParsedChunk(
+            id=f"{doc_id_prefix}_scanned",
+            text=f"[Extracted PDF Document '{filename}']:\n{extracted_text}",
+            chunk_type="text",
+            metadata={"source": filename, "chunk_type": "text"}
+        ))
 
         return chunks
 
@@ -109,10 +127,13 @@ class MultimodalDocumentParser:
             full_text = "\n\n".join([p.text for p in doc.paragraphs if p.text.strip()])
             text_chunks = self._parse_text_markdown(full_text, filename)
             chunks.extend(text_chunks)
+            if chunks:
+                return chunks
         except Exception:
-            raw_text = file_bytes.decode("utf-8", errors="ignore")
-            chunks = self._parse_text_markdown(raw_text, filename)
+            pass
 
+        raw_text = file_bytes.decode("utf-8", errors="ignore")
+        chunks = self._parse_text_markdown(raw_text, filename)
         return chunks
 
     def _parse_image(self, file_bytes: bytes, filename: str) -> List[ParsedChunk]:
@@ -181,6 +202,14 @@ class MultimodalDocumentParser:
 
         # Check for Markdown Tables (| col1 | col2 |)
         self._detect_and_classify_markdown_tables(chunks)
+
+        if not chunks and raw_text.strip():
+            chunks.append(ParsedChunk(
+                id=f"{doc_id_prefix}{page_suffix}_raw",
+                text=raw_text.strip(),
+                chunk_type="text",
+                metadata={"source": filename, "chunk_type": "text"}
+            ))
 
         return chunks
 

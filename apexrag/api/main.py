@@ -270,13 +270,13 @@ WEB_UI_HTML = """<!DOCTYPE html>
         .query-input:focus { border-color: var(--primary-glow); box-shadow: 0 0 15px rgba(99, 102, 241, 0.3); }
         .btn-primary { background: linear-gradient(135deg, var(--primary-glow), #4f46e5); color: #fff; border: none; border-radius: 12px; padding: 0.9rem 1.8rem; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
         .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(99, 102, 241, 0.4); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
         .btn-secondary { background: rgba(255,255,255,0.06); border: 1px solid var(--card-border); color: #e2e8f0; border-radius: 10px; padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: background 0.2s; }
         .btn-secondary:hover { background: rgba(255,255,255,0.12); }
 
         .answer-box { background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 1.2rem; min-height: 180px; margin-bottom: 1.5rem; border: 1px solid rgba(255,255,255,0.05); line-height: 1.6; white-space: pre-wrap; }
         .citation-tag { display: inline-block; background: rgba(6, 182, 212, 0.2); border: 1px solid rgba(6, 182, 212, 0.4); color: var(--accent-cyan); border-radius: 6px; padding: 0.1rem 0.4rem; font-size: 0.8rem; font-weight: 600; cursor: pointer; margin: 0 0.2rem; }
 
-        /* Multimodal Type Badges */
         .type-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; margin-left: 0.4rem; text-transform: uppercase; }
         .badge-text { background: rgba(148, 163, 184, 0.2); border: 1px solid rgba(148, 163, 184, 0.4); color: #cbd5e1; }
         .badge-table { background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: var(--accent-emerald); }
@@ -289,7 +289,6 @@ WEB_UI_HTML = """<!DOCTYPE html>
         .step-chip.active { background: rgba(99, 102, 241, 0.2); border-color: var(--primary-glow); color: #a5b4fc; }
         .step-chip.looping { background: rgba(245, 158, 11, 0.2); border-color: var(--accent-amber); color: var(--accent-amber); }
 
-        /* Drop Zone */
         .drop-zone { border: 2px dashed rgba(99, 102, 241, 0.4); background: rgba(15, 23, 42, 0.4); border-radius: 12px; padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 1rem; }
         .drop-zone:hover { border-color: var(--primary-glow); background: rgba(99, 102, 241, 0.1); }
 
@@ -365,7 +364,6 @@ WEB_UI_HTML = """<!DOCTYPE html>
                         <div style="font-size:0.8rem; color:var(--text-muted);">Supports PDF, DOCX, Markdown, Text, Code (.py, .js, .json), and Images (.png, .jpg)</div>
                         <input type="file" id="file-upload-input" style="display:none" onchange="uploadSelectedFile(this.files[0])">
                     </div>
-
 
                     <!-- Custom Text Form -->
                     <div id="custom-doc-form" style="display:none; background:rgba(15,23,42,0.6); padding:1rem; border-radius:12px; margin-bottom:1rem; border:1px solid var(--card-border);">
@@ -465,9 +463,13 @@ WEB_UI_HTML = """<!DOCTYPE html>
         }
 
         async function runQuery() {
-            const query = document.getElementById('query-input').value;
+            const queryInput = document.getElementById('query-input');
+            const btn = document.getElementById('btn-execute-query');
+            const query = queryInput.value;
             if (!query) return;
 
+            btn.disabled = true;
+            btn.innerText = "Running...";
             document.getElementById('answer-output').innerHTML = '<em>Executing hybrid retrieval (RRF) & cross-encoder reranking across multimodal chunks...</em>';
             
             try {
@@ -508,6 +510,9 @@ WEB_UI_HTML = """<!DOCTYPE html>
                 fetchMetrics();
             } catch (e) {
                 document.getElementById('answer-output').innerText = 'Error executing query: ' + e.message;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Execute Query";
             }
         }
 
@@ -553,13 +558,17 @@ WEB_UI_HTML = """<!DOCTYPE html>
                     body: formData
                 });
                 const data = await res.json();
-                alert(`Successfully parsed file '${data.filename}' into ${data.parsed_chunks_count} multimodal chunks!`);
+                if (res.ok) {
+                    alert(`Successfully parsed file '${data.filename}' into ${data.parsed_chunks_count} multimodal chunks!`);
+                } else {
+                    alert(`Error parsing file: ${data.detail || "Unknown error"}`);
+                }
                 checkHealth();
             } catch(e) {
                 alert("File upload error: " + e.message);
+                checkHealth();
             }
         }
-
 
         function toggleCustomDocForm() {
             const form = document.getElementById('custom-doc-form');
@@ -589,6 +598,8 @@ WEB_UI_HTML = """<!DOCTYPE html>
         }
 
         async function seedMultimodalDocs() {
+            const btn = document.getElementById('btn-load-seed');
+            btn.disabled = true;
             const sampleDocs = [
                 {
                     id: "doc-table-spec",
@@ -623,6 +634,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
             });
             const data = await res.json();
             alert(`Loaded ${data.ingested_count} Multimodal Suite benchmark chunks (Tables, Code, Diagrams)!`);
+            btn.disabled = false;
             checkHealth();
         }
 
@@ -656,24 +668,34 @@ WEB_UI_HTML = """<!DOCTYPE html>
         }
 
         async function runRagasBenchmark() {
-            const res = await fetch('/api/evaluate', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    samples: [
-                        {
-                            user_input: "What is the P50 latency of Hybrid RRF in the performance table?",
-                            response: "According to the performance table [Source 1], the P50 latency of Hybrid RRF is 12 ms.",
-                            retrieved_contexts: ["| Hybrid RRF | 12 ms | 28 ms | 98.4% |"]
-                        }
-                    ]
-                })
-            });
-            const report = await res.json();
-            document.getElementById('faithfulness-score').innerText = report.faithfulness_score;
-            document.getElementById('relevance-score').innerText = report.answer_relevance_score;
-            document.getElementById('precision-score').innerText = report.context_precision_score;
-            document.getElementById('recall-score').innerText = report.context_recall_score;
+            const btn = document.getElementById('btn-run-ragas');
+            btn.disabled = true;
+            btn.innerText = "Evaluating...";
+            try {
+                const res = await fetch('/api/evaluate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        samples: [
+                            {
+                                user_input: "What is the P50 latency of Hybrid RRF in the performance table?",
+                                response: "According to the performance table [Source 1], the P50 latency of Hybrid RRF is 12 ms.",
+                                retrieved_contexts: ["| Hybrid RRF | 12 ms | 28 ms | 98.4% |"]
+                            }
+                        ]
+                    })
+                });
+                const report = await res.json();
+                document.getElementById('faithfulness-score').innerText = report.faithfulness_score;
+                document.getElementById('relevance-score').innerText = report.answer_relevance_score;
+                document.getElementById('precision-score').innerText = report.context_precision_score;
+                document.getElementById('recall-score').innerText = report.context_recall_score;
+            } catch(e) {
+                alert("Evaluation error: " + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Run Evaluation";
+            }
         }
 
         window.onload = () => {
