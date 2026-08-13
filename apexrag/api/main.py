@@ -14,11 +14,12 @@ from apexrag.reranking.cross_encoder import CrossEncoderReranker
 from apexrag.graph.workflow import build_apexrag_graph
 from apexrag.observability.tracer import ApexTracer, MetricsRepository
 from apexrag.eval.evaluator import RagasEvaluator, EvaluationSample
+from apexrag.ingestion.multimodal_parser import MultimodalDocumentParser
 
 app = FastAPI(
     title="ApexRAG Engine API",
-    description="Enterprise-Grade RAG System with Hybrid Retrieval, LangGraph Self-Correction, Langfuse Telemetry, and RAGAS Evaluation.",
-    version="1.0.0"
+    description="Enterprise-Grade RAG System with Multimodal Document Ingestion, LangGraph Self-Correction, Langfuse Telemetry, and RAGAS Evaluation.",
+    version="1.1.0"
 )
 
 app.add_middleware(
@@ -46,6 +47,7 @@ hybrid_retriever = HybridRetriever(
 
 reranker = CrossEncoderReranker(model_name=settings.RERANKER_MODEL_NAME)
 evaluator = RagasEvaluator()
+multimodal_parser = MultimodalDocumentParser()
 
 # Models
 class QueryRequest(BaseModel):
@@ -56,6 +58,7 @@ class IngestDocument(BaseModel):
     id: str
     text: str
     filename: Optional[str] = "manual_entry.txt"
+    chunk_type: Optional[str] = "text"
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 class BatchIngestRequest(BaseModel):
@@ -75,14 +78,16 @@ def health_check():
 
 @app.get("/api/documents")
 def get_documents():
-    """List all currently indexed document chunks."""
+    """List all currently indexed multimodal document chunks."""
     output = []
     for c in sparse_retriever.chunks:
+        ctype = c.metadata.get("chunk_type", "text")
         output.append({
             "id": c.id,
             "filename": c.metadata.get("source", "document.txt"),
-            "snippet": c.text[:120] + ("..." if len(c.text) > 120 else ""),
-            "category": c.metadata.get("category", "Indexed Document")
+            "snippet": c.text[:140] + ("..." if len(c.text) > 140 else ""),
+            "chunk_type": ctype,
+            "category": c.metadata.get("category", "Multimodal Document")
         })
     return output
 
@@ -146,6 +151,7 @@ def ingest_documents(req: BatchIngestRequest):
     for doc in req.documents:
         meta = doc.metadata or {}
         meta["source"] = doc.filename
+        meta["chunk_type"] = doc.chunk_type or "text"
         chunk = DocumentChunk(
             id=doc.id,
             text=doc.text,
@@ -158,6 +164,44 @@ def ingest_documents(req: BatchIngestRequest):
     return {
         "status": "success",
         "ingested_count": len(chunks),
+        "total_bm25_chunks": len(sparse_retriever.chunks),
+        "total_chroma_chunks": dense_retriever.count()
+    }
+
+@app.post("/api/ingest/file")
+async def ingest_file(file: UploadFile = File(...)):
+    """Upload and parse full document files (PDF, DOCX, MD, TXT, Code, Images) into multimodal chunks."""
+    file_bytes = await file.read()
+    filename = file.filename or "uploaded_document.txt"
+
+    parsed_chunks = multimodal_parser.parse_file(file_bytes, filename)
+    if not parsed_chunks:
+        raise HTTPException(status_code=400, detail=f"Could not extract content from file '{filename}'.")
+
+    doc_chunks = []
+    for pchunk in parsed_chunks:
+        meta = pchunk.metadata or {}
+        meta["source"] = filename
+        meta["chunk_type"] = pchunk.chunk_type
+        doc_chunks.append(DocumentChunk(
+            id=pchunk.id,
+            text=pchunk.text,
+            metadata=meta
+        ))
+
+    hybrid_retriever.add_documents(doc_chunks)
+
+    return {
+        "status": "success",
+        "filename": filename,
+        "parsed_chunks_count": len(doc_chunks),
+        "chunk_types_breakdown": {
+            "text": sum(1 for c in doc_chunks if c.metadata.get("chunk_type") == "text"),
+            "table": sum(1 for c in doc_chunks if c.metadata.get("chunk_type") == "table"),
+            "code_snippet": sum(1 for c in doc_chunks if c.metadata.get("chunk_type") == "code_snippet"),
+            "diagram": sum(1 for c in doc_chunks if c.metadata.get("chunk_type") == "diagram"),
+            "image_caption": sum(1 for c in doc_chunks if c.metadata.get("chunk_type") == "image_caption")
+        },
         "total_bm25_chunks": len(sparse_retriever.chunks),
         "total_chroma_chunks": dense_retriever.count()
     }
@@ -183,7 +227,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ApexRAG - Enterprise RAG & Evaluation Platform</title>
+    <title>ApexRAG - Multimodal Enterprise RAG Platform</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -195,6 +239,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
             --accent-emerald: #10b981;
             --accent-rose: #f43f5e;
             --accent-amber: #f59e0b;
+            --accent-purple: #a855f7;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
         }
@@ -228,13 +273,25 @@ WEB_UI_HTML = """<!DOCTYPE html>
         .btn-secondary { background: rgba(255,255,255,0.06); border: 1px solid var(--card-border); color: #e2e8f0; border-radius: 10px; padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: background 0.2s; }
         .btn-secondary:hover { background: rgba(255,255,255,0.12); }
 
-        .answer-box { background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 1.2rem; min-height: 180px; margin-bottom: 1.5rem; border: 1px solid rgba(255,255,255,0.05); line-height: 1.6; }
+        .answer-box { background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 1.2rem; min-height: 180px; margin-bottom: 1.5rem; border: 1px solid rgba(255,255,255,0.05); line-height: 1.6; white-space: pre-wrap; }
         .citation-tag { display: inline-block; background: rgba(6, 182, 212, 0.2); border: 1px solid rgba(6, 182, 212, 0.4); color: var(--accent-cyan); border-radius: 6px; padding: 0.1rem 0.4rem; font-size: 0.8rem; font-weight: 600; cursor: pointer; margin: 0 0.2rem; }
+
+        /* Multimodal Type Badges */
+        .type-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; margin-left: 0.4rem; text-transform: uppercase; }
+        .badge-text { background: rgba(148, 163, 184, 0.2); border: 1px solid rgba(148, 163, 184, 0.4); color: #cbd5e1; }
+        .badge-table { background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: var(--accent-emerald); }
+        .badge-code_snippet { background: rgba(168, 85, 247, 0.2); border: 1px solid rgba(168, 85, 247, 0.4); color: var(--accent-purple); }
+        .badge-diagram { background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); color: var(--accent-amber); }
+        .badge-image_caption { background: rgba(244, 63, 94, 0.2); border: 1px solid rgba(244, 63, 94, 0.4); color: var(--accent-rose); }
 
         .stepper { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; overflow-x: auto; padding-bottom: 0.5rem; }
         .step-chip { background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); border-radius: 8px; padding: 0.5rem 0.9rem; font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; font-weight: 500; transition: all 0.3s; }
         .step-chip.active { background: rgba(99, 102, 241, 0.2); border-color: var(--primary-glow); color: #a5b4fc; }
         .step-chip.looping { background: rgba(245, 158, 11, 0.2); border-color: var(--accent-amber); color: var(--accent-amber); }
+
+        /* Drop Zone */
+        .drop-zone { border: 2px dashed rgba(99, 102, 241, 0.4); background: rgba(15, 23, 42, 0.4); border-radius: 12px; padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 1rem; }
+        .drop-zone:hover { border-color: var(--primary-glow); background: rgba(99, 102, 241, 0.1); }
 
         .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
         .metric-tile { background: rgba(15, 23, 42, 0.6); border: 1px solid var(--card-border); border-radius: 12px; padding: 1rem; text-align: center; }
@@ -255,24 +312,24 @@ WEB_UI_HTML = """<!DOCTYPE html>
             <div class="logo-badge">
                 <div class="logo-icon">A</div>
                 <div>
-                    <div class="brand-title">ApexRAG Engine</div>
-                    <div style="font-size:0.8rem; color:var(--text-muted)">LangGraph + BM25 + ChromaDB + RAGAS + Langfuse</div>
+                    <div class="brand-title">ApexRAG Multimodal Engine</div>
+                    <div style="font-size:0.8rem; color:var(--text-muted)">PDF • DOCX • Markdown • Code • Tables • Diagrams • Images</div>
                 </div>
             </div>
             <div class="status-pill" id="health-status">● System Operational</div>
         </header>
 
         <div class="dashboard-grid">
-            <!-- Left Main Column: Live Query & Telemetry Trace -->
+            <!-- Left Column -->
             <div>
                 <div class="glass-card" style="margin-bottom: 2rem;">
                     <div class="card-header">
-                        <div class="card-title">⚡ Interactive Query Workbench</div>
+                        <div class="card-title">⚡ Interactive Multimodal Query Workbench</div>
                         <span id="loop-count-badge" style="font-size:0.85rem; color:var(--accent-cyan); font-weight:600">Self-Correction Loops: 0</span>
                     </div>
 
                     <div class="query-box">
-                        <input type="text" id="query-input" class="query-input" placeholder="Ask a question about cloud infrastructure, RAG architecture, or telemetry..." value="What are the key architectural modules of ApexRAG?" onkeydown="if(event.key === 'Enter') runQuery()">
+                        <input type="text" id="query-input" class="query-input" placeholder="Ask about table data, code snippets, architectural diagrams, or text..." value="What are the key architectural components of ApexRAG?" onkeydown="if(event.key === 'Enter') runQuery()">
                         <button class="btn-primary" id="btn-execute-query" onclick="runQuery()">Execute Query</button>
                     </div>
 
@@ -286,27 +343,34 @@ WEB_UI_HTML = """<!DOCTYPE html>
                     </div>
 
                     <div class="card-title" style="font-size:0.9rem; margin-bottom:0.6rem;">Response Output:</div>
-                    <div class="answer-box" id="answer-output">Click <strong>Execute Query</strong> to run ApexRAG state machine workflow with real-time hybrid retrieval and cross-encoder reranking.</div>
+                    <div class="answer-box" id="answer-output">Click <strong>Execute Query</strong> to run ApexRAG state machine workflow across multimodal context chunks.</div>
 
                     <div class="card-title" style="font-size:0.9rem; margin-bottom:0.6rem;">Source Citations & Reranked Context Chunks:</div>
                     <div id="citations-container" style="display:flex; flex-direction:column; gap:0.5rem;"></div>
                 </div>
 
-                <!-- Seed Knowledge Base & Ingestion -->
+                <!-- Multimodal Knowledge Base & File Upload Zone -->
                 <div class="glass-card">
                     <div class="card-header">
-                        <div class="card-title">📚 Knowledge Base Management</div>
+                        <div class="card-title">📁 Multimodal Document Ingestion</div>
                         <div style="display:flex; gap:0.5rem;">
-                            <button class="btn-secondary" id="btn-toggle-custom" onclick="toggleCustomDocForm()">+ Add Custom Doc</button>
-                            <button class="btn-primary" id="btn-load-seed" style="padding:0.5rem 1rem; font-size:0.85rem;" onclick="seedSampleDocs()">Load Benchmark Docs</button>
+                            <button class="btn-secondary" id="btn-toggle-custom" onclick="toggleCustomDocForm()">+ Text Doc</button>
+                            <button class="btn-primary" id="btn-load-seed" style="padding:0.5rem 1rem; font-size:0.85rem;" onclick="seedMultimodalDocs()">Load Multimodal Suite</button>
                         </div>
                     </div>
 
-                    <!-- Add Custom Document Form -->
+                    <!-- File Drag and Drop Zone -->
+                    <div class="drop-zone" onclick="document.getElementById('file-upload-input').click()">
+                        <div style="font-weight:600; font-size:1rem; margin-bottom:0.3rem;">📄 Drag & Drop or Click to Upload Whole Document</div>
+                        <div style="font-size:0.8rem; color:var(--text-muted);">Supports PDF, DOCX, Markdown, Text, Code (.py, .js, .json), and Images (.png, .jpg)</div>
+                        <input type="file" id="file-upload-input" style="display:none" onchange="uploadSelectedFile(this.files[0])">
+                    </div>
+
+                    <!-- Custom Text Form -->
                     <div id="custom-doc-form" style="display:none; background:rgba(15,23,42,0.6); padding:1rem; border-radius:12px; margin-bottom:1rem; border:1px solid var(--card-border);">
-                        <div style="font-size:0.9rem; font-weight:600; margin-bottom:0.5rem;">Ingest Custom Document</div>
-                        <input type="text" id="doc-filename-input" class="form-input" placeholder="Filename (e.g. System_Design.pdf)">
-                        <textarea id="doc-text-input" class="form-textarea" placeholder="Enter document content text to index into ChromaDB & BM25..."></textarea>
+                        <div style="font-size:0.9rem; font-weight:600; margin-bottom:0.5rem;">Ingest Custom Text / Markdown</div>
+                        <input type="text" id="doc-filename-input" class="form-input" placeholder="Filename (e.g. System_Spec.md)">
+                        <textarea id="doc-text-input" class="form-textarea" placeholder="Paste markdown, table matrices, or code blocks..."></textarea>
                         <button class="btn-primary" id="btn-ingest-custom" style="padding:0.5rem 1.2rem; font-size:0.85rem;" onclick="ingestCustomDocument()">Ingest Document</button>
                     </div>
 
@@ -314,9 +378,9 @@ WEB_UI_HTML = """<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- Right Column: Real-Time Observability & RAGAS Evaluation -->
+            <!-- Right Column -->
             <div>
-                <!-- Observability & Telemetry Card -->
+                <!-- Observability Card -->
                 <div class="glass-card" style="margin-bottom: 2rem;">
                     <div class="card-header">
                         <div class="card-title">📊 Real-Time Telemetry (Langfuse)</div>
@@ -349,7 +413,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
                     </div>
                 </div>
 
-                <!-- RAGAS Evaluation Benchmarks Card -->
+                <!-- RAGAS Evaluation Card -->
                 <div class="glass-card">
                     <div class="card-header">
                         <div class="card-title">🎯 RAGAS Evaluation Metrics</div>
@@ -403,7 +467,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
             const query = document.getElementById('query-input').value;
             if (!query) return;
 
-            document.getElementById('answer-output').innerHTML = '<em>Executing hybrid retrieval (RRF) & cross-encoder reranking via LangGraph state machine...</em>';
+            document.getElementById('answer-output').innerHTML = '<em>Executing hybrid retrieval (RRF) & cross-encoder reranking across multimodal chunks...</em>';
             
             try {
                 const res = await fetch('/api/query', {
@@ -425,14 +489,15 @@ WEB_UI_HTML = """<!DOCTYPE html>
                     step4.innerText = `4. Self-Correction Loop`;
                 }
 
-                // Render Citations
+                // Render Citations with Type Badges
                 const container = document.getElementById('citations-container');
                 container.innerHTML = '';
                 if (data.citations && data.citations.length > 0) {
                     data.citations.forEach(c => {
                         const div = document.createElement('div');
                         div.className = 'doc-item';
-                        div.innerHTML = `<div><strong class="citation-tag">[${c.source_id}]</strong> <strong>${c.filename}</strong>: ${c.snippet}</div><span style="color:var(--accent-cyan); font-weight:600;">Score: ${c.score.toFixed(2)}</span>`;
+                        const ctype = c.chunk_type || "text";
+                        div.innerHTML = `<div><strong class="citation-tag">[${c.source_id}]</strong> <strong>${c.filename}</strong> <span class="type-badge badge-${ctype}">${ctype}</span>: ${c.snippet}</div><span style="color:var(--accent-cyan); font-weight:600;">Score: ${c.score.toFixed(2)}</span>`;
                         container.appendChild(div);
                     });
                 } else {
@@ -445,13 +510,33 @@ WEB_UI_HTML = """<!DOCTYPE html>
             }
         }
 
+        async function uploadSelectedFile(file) {
+            if (!file) return;
+            const formData = new FormData();
+            formData.append('file', file);
+
+            document.getElementById('health-status').innerText = `● Parsing '${file.name}'...`;
+            
+            try {
+                const res = await fetch('/api/ingest/file', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                alert(`Successfully parsed file '${data.filename}' into ${data.parsed_chunks_count} multimodal chunks!`);
+                checkHealth();
+            } catch(e) {
+                alert("File upload error: " + e.message);
+            }
+        }
+
         function toggleCustomDocForm() {
             const form = document.getElementById('custom-doc-form');
             form.style.display = form.style.display === 'none' ? 'block' : 'none';
         }
 
         async function ingestCustomDocument() {
-            const filename = document.getElementById('doc-filename-input').value || "CustomDoc.txt";
+            const filename = document.getElementById('doc-filename-input').value || "CustomDoc.md";
             const text = document.getElementById('doc-text-input').value;
             if (!text.trim()) {
                 alert("Please enter document content text.");
@@ -472,22 +557,31 @@ WEB_UI_HTML = """<!DOCTYPE html>
             checkHealth();
         }
 
-        async function seedSampleDocs() {
+        async function seedMultimodalDocs() {
             const sampleDocs = [
                 {
-                    id: "doc-apex-arch",
-                    filename: "ApexRAG_Architecture.md",
-                    text: "ApexRAG combines Reciprocal Rank Fusion (RRF) sparse BM25 and dense ChromaDB vector search. Top retrieved chunks are passed through a HuggingFace Cross-Encoder reranker (ms-marco-MiniLM-L-6-v2) for relevance scoring. LangGraph manages stateful self-correction loops when document context scores fall below threshold."
+                    id: "doc-table-spec",
+                    filename: "Performance_Benchmark_Table.md",
+                    chunk_type: "table",
+                    text: "[Table from System Specs]:\n| Module | Latency (P50) | Latency (P95) | Accuracy |\n| --- | --- | --- | --- |\n| Hybrid RRF | 12 ms | 28 ms | 98.4% |\n| Cross-Encoder Reranker | 45 ms | 82 ms | 99.1% |\n| LangGraph Self-Correction | 110 ms | 240 ms | 99.8% |"
                 },
                 {
-                    id: "doc-observability",
-                    filename: "Observability_Langfuse.md",
-                    text: "ApexRAG integrates real-time Langfuse tracing to monitor P50, P90, and P95 response latencies. Telemetry tracks prompt and completion tokens, calculating cost per request and recording span execution trees for vector retrieval, reranking, and generation."
+                    id: "doc-code-snippet",
+                    filename: "RRF_Engine.py",
+                    chunk_type: "code_snippet",
+                    text: "[Code Snippet (python) in RRF_Engine.py]:\n```python\ndef compute_rrf_scores(sparse_ranks, dense_ranks, k=60):\
+    rrf = {}\
+    for doc_id, rank in sparse_ranks.items():\
+        rrf[doc_id] = rrf.get(doc_id, 0.0) + (1.0 / (k + rank))\
+    for doc_id, rank in dense_ranks.items():\
+        rrf[doc_id] = rrf.get(doc_id, 0.0) + (1.0 / (k + rank))\
+    return rrf\n```"
                 },
                 {
-                    id: "doc-eval-ragas",
-                    filename: "RAGAS_Benchmark.md",
-                    text: "Evaluation in ApexRAG is automated using the RAGAS framework. Key offline metrics include Faithfulness (verifying response grounding in context), Answer Relevance (query alignment), Context Precision (isolating accurate chunks), and Context Recall."
+                    id: "doc-diagram-arch",
+                    filename: "System_Architecture_Diagram.md",
+                    chunk_type: "diagram",
+                    text: "[Diagram (mermaid) in Architecture_Diagram.md]:\n```mermaid\ngraph TD\n    Query --> HybridRetrieval[BM25 + ChromaDB RRF]\n    HybridRetrieval --> Reranker[Cross-Encoder MiniLM]\n    Reranker --> SelfCorrection{Relevance Score >= 0.50?}\n    SelfCorrection -- Yes --> LLM[LLM Generator]\n    SelfCorrection -- No --> Rewrite[Query Expansion]\n    Rewrite --> HybridRetrieval\n```"
                 }
             ];
 
@@ -497,7 +591,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
                 body: JSON.stringify({documents: sampleDocs})
             });
             const data = await res.json();
-            alert(`Ingested ${data.ingested_count} ApexRAG benchmark documents into ChromaDB & BM25 index!`);
+            alert(`Loaded ${data.ingested_count} Multimodal Suite benchmark chunks (Tables, Code, Diagrams)!`);
             checkHealth();
         }
 
@@ -505,13 +599,14 @@ WEB_UI_HTML = """<!DOCTYPE html>
             const list = document.getElementById('docs-list');
             list.innerHTML = '';
             if (!docs || docs.length === 0) {
-                list.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem;">No documents indexed yet. Click Benchmark Docs or Add Custom Doc.</div>';
+                list.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem;">No documents indexed yet. Upload a PDF/Docx/Image file above or click Benchmark Suite.</div>';
                 return;
             }
             docs.forEach(d => {
                 const div = document.createElement('div');
                 div.className = 'doc-item';
-                div.innerHTML = `<div><strong>${d.filename}</strong> (${d.id}): <span style="color:var(--text-muted);">${d.snippet}</span></div><span style="color:var(--accent-emerald); font-weight:600;">Indexed</span>`;
+                const ctype = d.chunk_type || "text";
+                div.innerHTML = `<div><strong>${d.filename}</strong> <span class="type-badge badge-${ctype}">${ctype}</span>: <span style="color:var(--text-muted);">${d.snippet}</span></div><span style="color:var(--accent-emerald); font-weight:600;">Indexed</span>`;
                 list.appendChild(div);
             });
         }
@@ -536,9 +631,9 @@ WEB_UI_HTML = """<!DOCTYPE html>
                 body: JSON.stringify({
                     samples: [
                         {
-                            user_input: "What is the reranking model used in ApexRAG?",
-                            response: "ApexRAG uses the ms-marco-MiniLM-L-6-v2 Cross-Encoder model to score and rerank retrieved chunks [Source 1].",
-                            retrieved_contexts: ["Top retrieved chunks are passed through a HuggingFace Cross-Encoder reranker (ms-marco-MiniLM-L-6-v2) for relevance scoring."]
+                            user_input: "What is the P50 latency of Hybrid RRF in the performance table?",
+                            response: "According to the performance table [Source 1], the P50 latency of Hybrid RRF is 12 ms.",
+                            retrieved_contexts: ["| Hybrid RRF | 12 ms | 28 ms | 98.4% |"]
                         }
                     ]
                 })
