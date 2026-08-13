@@ -360,11 +360,12 @@ WEB_UI_HTML = """<!DOCTYPE html>
                     </div>
 
                     <!-- File Drag and Drop Zone -->
-                    <div class="drop-zone" onclick="document.getElementById('file-upload-input').click()">
+                    <div class="drop-zone" id="drop-zone-box" onclick="document.getElementById('file-upload-input').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleFileDrop(event)">
                         <div style="font-weight:600; font-size:1rem; margin-bottom:0.3rem;">📄 Drag & Drop or Click to Upload Whole Document</div>
                         <div style="font-size:0.8rem; color:var(--text-muted);">Supports PDF, DOCX, Markdown, Text, Code (.py, .js, .json), and Images (.png, .jpg)</div>
                         <input type="file" id="file-upload-input" style="display:none" onchange="uploadSelectedFile(this.files[0])">
                     </div>
+
 
                     <!-- Custom Text Form -->
                     <div id="custom-doc-form" style="display:none; background:rgba(15,23,42,0.6); padding:1rem; border-radius:12px; margin-bottom:1rem; border:1px solid var(--card-border);">
@@ -510,6 +511,35 @@ WEB_UI_HTML = """<!DOCTYPE html>
             }
         }
 
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const box = document.getElementById('drop-zone-box');
+            if (box) {
+                box.style.borderColor = 'var(--accent-emerald)';
+                box.style.background = 'rgba(16, 185, 129, 0.15)';
+            }
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const box = document.getElementById('drop-zone-box');
+            if (box) {
+                box.style.borderColor = 'rgba(99, 102, 241, 0.4)';
+                box.style.background = 'rgba(15, 23, 42, 0.4)';
+            }
+        }
+
+        function handleFileDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            handleDragLeave(e);
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                uploadSelectedFile(e.dataTransfer.files[0]);
+            }
+        }
+
         async function uploadSelectedFile(file) {
             if (!file) return;
             const formData = new FormData();
@@ -529,6 +559,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
                 alert("File upload error: " + e.message);
             }
         }
+
 
         function toggleCustomDocForm() {
             const form = document.getElementById('custom-doc-form');
