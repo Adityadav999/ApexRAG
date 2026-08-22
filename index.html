@@ -425,14 +425,31 @@
                     id: "doc-code-snippet",
                     filename: "RRF_Engine.py",
                     chunk_type: "code_snippet",
-                    text: "[Code Snippet (python) in RRF_Engine.py]:\n```python\ndef compute_rrf_scores(sparse_ranks, dense_ranks, k=60):\n    rrf = {}\n    for doc_id, rank in sparse_ranks.items():\n        rrf[doc_id] = rrf.get(doc_id, 0.0) + (1.0 / (k + rank))\
-    for doc_id, rank in dense_ranks.items():\n        rrf[doc_id] = rrf.get(doc_id, 0.0) + (1.0 / (k + rank))\n    return rrf\n```"
+                    text: "[Code Snippet (python) in RRF_Engine.py]:\n" +
+                          "```python\n" +
+                          "def compute_rrf_scores(sparse_ranks, dense_ranks, k=60):\n" +
+                          "    rrf = {}\n" +
+                          "    for doc_id, rank in sparse_ranks.items():\n" +
+                          "        rrf[doc_id] = rrf.get(doc_id, 0.0) + (1.0 / (k + rank))\n" +
+                          "    for doc_id, rank in dense_ranks.items():\n" +
+                          "        rrf[doc_id] = rrf.get(doc_id, 0.0) + (1.0 / (k + rank))\n" +
+                          "    return rrf\n" +
+                          "```"
                 },
                 {
                     id: "doc-diagram-arch",
                     filename: "System_Architecture_Diagram.md",
                     chunk_type: "diagram",
-                    text: "[Diagram (mermaid) in Architecture_Diagram.md]:\n```mermaid\ngraph TD\n    Query --> HybridRetrieval[BM25 + ChromaDB RRF]\n    HybridRetrieval --> Reranker[Cross-Encoder MiniLM]\n    Reranker --> SelfCorrection{Relevance Score >= 0.50?}\n    SelfCorrection -- Yes --> LLM[LLM Generator]\n    SelfCorrection -- No --> Rewrite[Query Expansion]\n    Rewrite --> HybridRetrieval\n```"
+                    text: "[Diagram (mermaid) in Architecture_Diagram.md]:\n" +
+                          "```mermaid\n" +
+                          "graph TD\n" +
+                          "    Query --> HybridRetrieval[BM25 + ChromaDB RRF]\n" +
+                          "    HybridRetrieval --> Reranker[Cross-Encoder MiniLM]\n" +
+                          "    Reranker --> SelfCorrection{Relevance Score >= 0.50?}\n" +
+                          "    SelfCorrection -- Yes --> LLM[LLM Generator]\n" +
+                          "    SelfCorrection -- No --> Rewrite[Query Expansion]\n" +
+                          "    Rewrite --> HybridRetrieval\n" +
+                          "```"
                 }
             ];
 
