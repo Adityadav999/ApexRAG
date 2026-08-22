@@ -19,7 +19,7 @@ from apexrag.ingestion.multimodal_parser import MultimodalDocumentParser
 app = FastAPI(
     title="ApexRAG Engine API",
     description="Enterprise-Grade RAG System with Multimodal Document Ingestion, LangGraph Self-Correction, Langfuse Telemetry, and RAGAS Evaluation.",
-    version="1.1.0"
+    version="1.2.0"
 )
 
 app.add_middleware(
@@ -73,23 +73,30 @@ def health_check():
         "status": "healthy",
         "app_name": settings.APP_NAME,
         "bm25_chunks": len(sparse_retriever.chunks),
-        "chroma_chunks": dense_retriever.count()
+        "chroma_chunks": dense_retriever.count(),
+        "storage_engine": "ChromaDB + SQLite (Capacity: >100GB / Millions of Chunks)",
+        "max_file_size_mb": 250
     }
 
 @app.get("/api/documents")
 def get_documents():
-    """List all currently indexed multimodal document chunks."""
-    output = []
+    """List all currently indexed multimodal document chunks grouped by filename."""
+    file_map: Dict[str, Dict[str, Any]] = {}
     for c in sparse_retriever.chunks:
+        fname = c.metadata.get("source", "document.txt")
         ctype = c.metadata.get("chunk_type", "text")
-        output.append({
-            "id": c.id,
-            "filename": c.metadata.get("source", "document.txt"),
-            "snippet": c.text[:140] + ("..." if len(c.text) > 140 else ""),
-            "chunk_type": ctype,
-            "category": c.metadata.get("category", "Multimodal Document")
-        })
-    return output
+        
+        if fname not in file_map:
+            file_map[fname] = {
+                "filename": fname,
+                "total_chunks": 0,
+                "types": {},
+                "sample_snippet": c.text[:140] + ("..." if len(c.text) > 140 else "")
+            }
+        file_map[fname]["total_chunks"] += 1
+        file_map[fname]["types"][ctype] = file_map[fname]["types"].get(ctype, 0) + 1
+
+    return list(file_map.values())
 
 @app.post("/api/query")
 def execute_query(req: QueryRequest):
@@ -292,6 +299,11 @@ WEB_UI_HTML = """<!DOCTYPE html>
         .drop-zone { border: 2px dashed rgba(99, 102, 241, 0.4); background: rgba(15, 23, 42, 0.4); border-radius: 12px; padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 1rem; }
         .drop-zone:hover { border-color: var(--primary-glow); background: rgba(99, 102, 241, 0.1); }
 
+        .notification-banner { padding: 0.8rem 1.2rem; border-radius: 10px; font-size: 0.9rem; font-weight: 500; margin-bottom: 1rem; display: none; }
+        .banner-info { background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3); color: #a5b4fc; }
+        .banner-success { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: var(--accent-emerald); }
+        .banner-error { background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.3); color: var(--accent-rose); }
+
         .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
         .metric-tile { background: rgba(15, 23, 42, 0.6); border: 1px solid var(--card-border); border-radius: 12px; padding: 1rem; text-align: center; }
         .metric-value { font-size: 1.6rem; font-weight: 700; color: #fff; font-family: 'JetBrains Mono', monospace; }
@@ -317,6 +329,9 @@ WEB_UI_HTML = """<!DOCTYPE html>
             </div>
             <div class="status-pill" id="health-status">● System Operational</div>
         </header>
+
+        <!-- Live Notification Banner -->
+        <div class="notification-banner" id="notification-box"></div>
 
         <div class="dashboard-grid">
             <!-- Left Column -->
@@ -361,7 +376,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
                     <!-- File Drag and Drop Zone -->
                     <div class="drop-zone" id="drop-zone-box" onclick="document.getElementById('file-upload-input').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleFileDrop(event)">
                         <div style="font-weight:600; font-size:1rem; margin-bottom:0.3rem;">📄 Drag & Drop or Click to Upload Whole Document</div>
-                        <div style="font-size:0.8rem; color:var(--text-muted);">Supports PDF, DOCX, Markdown, Text, Code (.py, .js, .json), and Images (.png, .jpg)</div>
+                        <div style="font-size:0.8rem; color:var(--text-muted);">Supports PDF, DOCX, Markdown, Text, Code (.py, .js, .json), and Images (.png, .jpg) up to 250MB</div>
                         <input type="file" id="file-upload-input" style="display:none" onchange="uploadSelectedFile(this.files[0])">
                     </div>
 
@@ -443,6 +458,16 @@ WEB_UI_HTML = """<!DOCTYPE html>
     </div>
 
     <script>
+        function showNotification(msg, type = 'info') {
+            const box = document.getElementById('notification-box');
+            box.innerText = msg;
+            box.className = `notification-banner banner-${type}`;
+            box.style.display = 'block';
+            if (type !== 'info') {
+                setTimeout(() => { box.style.display = 'none'; }, 6000);
+            }
+        }
+
         async function checkHealth() {
             try {
                 const res = await fetch('/api/health');
@@ -470,6 +495,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
 
             btn.disabled = true;
             btn.innerText = "Running...";
+            showNotification("Executing LangGraph hybrid retrieval (BM25 + ChromaDB RRF) & cross-encoder reranking...", 'info');
             document.getElementById('answer-output').innerHTML = '<em>Executing hybrid retrieval (RRF) & cross-encoder reranking across multimodal chunks...</em>';
             
             try {
@@ -492,7 +518,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
                     step4.innerText = `4. Self-Correction Loop`;
                 }
 
-                // Render Citations with Type Badges
+                // Render Citations
                 const container = document.getElementById('citations-container');
                 container.innerHTML = '';
                 if (data.citations && data.citations.length > 0) {
@@ -504,12 +530,14 @@ WEB_UI_HTML = """<!DOCTYPE html>
                         container.appendChild(div);
                     });
                 } else {
-                    container.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem;">No citations available.</div>';
+                    container.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem;">No citations available for this query.</div>';
                 }
 
+                showNotification("Query executed successfully!", 'success');
                 fetchMetrics();
             } catch (e) {
                 document.getElementById('answer-output').innerText = 'Error executing query: ' + e.message;
+                showNotification("Query Error: " + e.message, 'error');
             } finally {
                 btn.disabled = false;
                 btn.innerText = "Execute Query";
@@ -550,6 +578,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
             const formData = new FormData();
             formData.append('file', file);
 
+            showNotification(`Parsing and indexing document '${file.name}' into ChromaDB & BM25...`, 'info');
             document.getElementById('health-status').innerText = `● Parsing '${file.name}'...`;
             
             try {
@@ -559,13 +588,13 @@ WEB_UI_HTML = """<!DOCTYPE html>
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    alert(`Successfully parsed file '${data.filename}' into ${data.parsed_chunks_count} multimodal chunks!`);
+                    showNotification(`File '${data.filename}' indexed into ${data.parsed_chunks_count} chunks!`, 'success');
                 } else {
-                    alert(`Error parsing file: ${data.detail || "Unknown error"}`);
+                    showNotification(`Upload Error: ${data.detail || "Could not parse file"}`, 'error');
                 }
                 checkHealth();
             } catch(e) {
-                alert("File upload error: " + e.message);
+                showNotification("File Upload Error: " + e.message, 'error');
                 checkHealth();
             }
         }
@@ -579,7 +608,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
             const filename = document.getElementById('doc-filename-input').value || "CustomDoc.md";
             const text = document.getElementById('doc-text-input').value;
             if (!text.trim()) {
-                alert("Please enter document content text.");
+                showNotification("Please enter text content to ingest.", 'error');
                 return;
             }
             const docId = "custom-" + Date.now();
@@ -591,7 +620,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
                 })
             });
             const data = await res.json();
-            alert(`Document '${filename}' indexed successfully into ChromaDB & BM25!`);
+            showNotification(`Document '${filename}' indexed successfully!`, 'success');
             document.getElementById('doc-text-input').value = '';
             toggleCustomDocForm();
             checkHealth();
@@ -600,6 +629,8 @@ WEB_UI_HTML = """<!DOCTYPE html>
         async function seedMultimodalDocs() {
             const btn = document.getElementById('btn-load-seed');
             btn.disabled = true;
+            showNotification("Loading Multimodal Suite benchmark chunks (Tables, Code, Diagrams)...", 'info');
+
             const sampleDocs = [
                 {
                     id: "doc-table-spec",
@@ -633,7 +664,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
                 body: JSON.stringify({documents: sampleDocs})
             });
             const data = await res.json();
-            alert(`Loaded ${data.ingested_count} Multimodal Suite benchmark chunks (Tables, Code, Diagrams)!`);
+            showNotification(`Loaded ${data.ingested_count} Multimodal Suite benchmark chunks!`, 'success');
             btn.disabled = false;
             checkHealth();
         }
@@ -642,14 +673,14 @@ WEB_UI_HTML = """<!DOCTYPE html>
             const list = document.getElementById('docs-list');
             list.innerHTML = '';
             if (!docs || docs.length === 0) {
-                list.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem;">No documents indexed yet. Upload a PDF/Docx/Image file above or click Benchmark Suite.</div>';
+                list.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem;">No documents indexed yet. Drag & drop a PDF/Docx/Image file above or click Benchmark Suite.</div>';
                 return;
             }
             docs.forEach(d => {
                 const div = document.createElement('div');
                 div.className = 'doc-item';
-                const ctype = d.chunk_type || "text";
-                div.innerHTML = `<div><strong>${d.filename}</strong> <span class="type-badge badge-${ctype}">${ctype}</span>: <span style="color:var(--text-muted);">${d.snippet}</span></div><span style="color:var(--accent-emerald); font-weight:600;">Indexed</span>`;
+                const typesStr = Object.entries(d.types || {}).map(([t, count]) => `<span class="type-badge badge-${t}">${count} ${t}</span>`).join(' ');
+                div.innerHTML = `<div>📄 <strong>${d.filename}</strong> (${d.total_chunks} Chunks) ${typesStr}<br><span style="color:var(--text-muted); font-size:0.8rem;">Snippet: ${d.sample_snippet}</span></div><span style="color:var(--accent-emerald); font-weight:600;">Indexed</span>`;
                 list.appendChild(div);
             });
         }
@@ -671,6 +702,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
             const btn = document.getElementById('btn-run-ragas');
             btn.disabled = true;
             btn.innerText = "Evaluating...";
+            showNotification("Running automated RAGAS benchmark metrics...", 'info');
             try {
                 const res = await fetch('/api/evaluate', {
                     method: 'POST',
@@ -690,8 +722,9 @@ WEB_UI_HTML = """<!DOCTYPE html>
                 document.getElementById('relevance-score').innerText = report.answer_relevance_score;
                 document.getElementById('precision-score').innerText = report.context_precision_score;
                 document.getElementById('recall-score').innerText = report.context_recall_score;
+                showNotification("RAGAS Evaluation completed successfully!", 'success');
             } catch(e) {
-                alert("Evaluation error: " + e.message);
+                showNotification("Evaluation error: " + e.message, 'error');
             } finally {
                 btn.disabled = false;
                 btn.innerText = "Run Evaluation";

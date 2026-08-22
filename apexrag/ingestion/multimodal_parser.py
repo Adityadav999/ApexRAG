@@ -34,16 +34,16 @@ class MultimodalDocumentParser:
             return self._parse_text_markdown(file_bytes.decode("utf-8", errors="ignore"), filename)
 
     def _parse_pdf(self, file_bytes: bytes, filename: str) -> List[ParsedChunk]:
-        """Extract text, tables, code snippets, and figure metadata from PDF documents."""
+        """Extract text, tables, code snippets, and figure metadata from PDF documents with per-page resilience."""
         chunks = []
         doc_id_prefix = re.sub(r'[^a-zA-Z0-9]', '_', filename)
 
-        # 1. Try pdfplumber for table & text extraction
+        # 1. Try pdfplumber with per-page resilience
         try:
             import pdfplumber
             with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
                 for p_idx, page in enumerate(pdf.pages, start=1):
-                    # Extract Tables
+                    # Per-page table extraction
                     try:
                         tables = page.extract_tables()
                         for t_idx, table in enumerate(tables, start=1):
@@ -59,41 +59,47 @@ class MultimodalDocumentParser:
                     except Exception:
                         pass
                     
-                    # Extract Page Text
-                    text = page.extract_text() or ""
-                    if text.strip():
-                        page_chunks = self._parse_text_markdown(text, filename, page_num=p_idx)
-                        chunks.extend(page_chunks)
+                    # Per-page text extraction
+                    try:
+                        text = page.extract_text() or ""
+                        if text.strip():
+                            page_chunks = self._parse_text_markdown(text, filename, page_num=p_idx)
+                            chunks.extend(page_chunks)
+                    except Exception:
+                        pass
             if chunks:
                 return chunks
         except Exception:
             pass
 
-        # 2. Try PyPDF
+        # 2. Try PyPDF per page
         try:
             import pypdf
             reader = pypdf.PdfReader(io.BytesIO(file_bytes))
             for p_idx, page in enumerate(reader.pages, start=1):
-                text = page.extract_text() or ""
-                if text.strip():
-                    page_chunks = self._parse_text_markdown(text, filename, page_num=p_idx)
-                    chunks.extend(page_chunks)
+                try:
+                    text = page.extract_text() or ""
+                    if text.strip():
+                        page_chunks = self._parse_text_markdown(text, filename, page_num=p_idx)
+                        chunks.extend(page_chunks)
+                except Exception:
+                    pass
             if chunks:
                 return chunks
         except Exception:
             pass
 
-        # 3. Fallback for scanned/unstructured PDF files
+        # 3. Universal Fallback for complex/scanned PDF files
         raw_str = file_bytes.decode("utf-8", errors="ignore")
         clean_words = re.findall(r'[a-zA-Z0-9_\-\.\:\/]{3,}', raw_str)
-        extracted_text = " ".join(clean_words[:300])
+        extracted_text = " ".join(clean_words[:500])
         
         if not extracted_text.strip():
             extracted_text = f"Document content from uploaded PDF file '{filename}'."
 
         chunks.append(ParsedChunk(
-            id=f"{doc_id_prefix}_scanned",
-            text=f"[Extracted PDF Document '{filename}']:\n{extracted_text}",
+            id=f"{doc_id_prefix}_pdf_extracted",
+            text=f"[Extracted Content from PDF '{filename}']:\n{extracted_text}",
             chunk_type="text",
             metadata={"source": filename, "chunk_type": "text"}
         ))
@@ -111,22 +117,26 @@ class MultimodalDocumentParser:
 
             # Parse Tables
             for t_idx, table in enumerate(doc.tables, start=1):
-                table_data = []
-                for row in table.rows:
-                    table_data.append([cell.text.strip() for cell in row.cells])
-                if table_data and len(table_data) > 1:
-                    md_table = self._convert_table_to_markdown(table_data)
-                    chunks.append(ParsedChunk(
-                        id=f"{doc_id_prefix}_table_{t_idx}",
-                        text=f"[Table from {filename}]:\n{md_table}",
-                        chunk_type="table",
-                        metadata={"source": filename, "chunk_type": "table"}
-                    ))
+                try:
+                    table_data = []
+                    for row in table.rows:
+                        table_data.append([cell.text.strip() for cell in row.cells])
+                    if table_data and len(table_data) > 1:
+                        md_table = self._convert_table_to_markdown(table_data)
+                        chunks.append(ParsedChunk(
+                            id=f"{doc_id_prefix}_table_{t_idx}",
+                            text=f"[Table from {filename}]:\n{md_table}",
+                            chunk_type="table",
+                            metadata={"source": filename, "chunk_type": "table"}
+                        ))
+                except Exception:
+                    pass
 
             # Parse Paragraphs
             full_text = "\n\n".join([p.text for p in doc.paragraphs if p.text.strip()])
-            text_chunks = self._parse_text_markdown(full_text, filename)
-            chunks.extend(text_chunks)
+            if full_text.strip():
+                text_chunks = self._parse_text_markdown(full_text, filename)
+                chunks.extend(text_chunks)
             if chunks:
                 return chunks
         except Exception:
