@@ -281,7 +281,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
         .btn-secondary { background: rgba(255,255,255,0.06); border: 1px solid var(--card-border); color: #e2e8f0; border-radius: 10px; padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: background 0.2s; }
         .btn-secondary:hover { background: rgba(255,255,255,0.12); }
 
-        .answer-box { background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 1.2rem; min-height: 180px; margin-bottom: 1.5rem; border: 1px solid rgba(255,255,255,0.05); line-height: 1.6; white-space: pre-wrap; }
+        .answer-box { background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 1.2rem; min-height: 180px; margin-bottom: 1.5rem; border: 1px solid rgba(255,255,255,0.05); line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
         .citation-tag { display: inline-block; background: rgba(6, 182, 212, 0.2); border: 1px solid rgba(6, 182, 212, 0.4); color: var(--accent-cyan); border-radius: 6px; padding: 0.1rem 0.4rem; font-size: 0.8rem; font-weight: 600; cursor: pointer; margin: 0 0.2rem; }
 
         .type-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; margin-left: 0.4rem; text-transform: uppercase; }
@@ -309,7 +309,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
         .metric-value { font-size: 1.6rem; font-weight: 700; color: #fff; font-family: 'JetBrains Mono', monospace; }
         .metric-label { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem; }
 
-        .doc-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: rgba(15, 23, 42, 0.5); border-radius: 8px; margin-bottom: 0.5rem; border: 1px solid rgba(255,255,255,0.04); font-size: 0.85rem; }
+        .doc-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: rgba(15, 23, 42, 0.5); border-radius: 8px; margin-bottom: 0.5rem; border: 1px solid rgba(255,255,255,0.04); font-size: 0.85rem; word-break: break-word; }
         .form-input { width: 100%; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--card-border); border-radius: 8px; padding: 0.6rem 0.9rem; color: #fff; font-size: 0.9rem; margin-bottom: 0.75rem; outline: none; }
         .form-textarea { width: 100%; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--card-border); border-radius: 8px; padding: 0.6rem 0.9rem; color: #fff; font-size: 0.9rem; margin-bottom: 0.75rem; outline: none; min-height: 80px; resize: vertical; }
     </style>
@@ -458,8 +458,21 @@ WEB_UI_HTML = """<!DOCTYPE html>
     </div>
 
     <script>
+        const API_BASE = window.location.origin.startsWith('http') ? window.location.origin : 'http://127.0.0.1:8000';
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
         function showNotification(msg, type = 'info') {
             const box = document.getElementById('notification-box');
+            if (!box) return;
             box.innerText = msg;
             box.className = `notification-banner banner-${type}`;
             box.style.display = 'block';
@@ -470,7 +483,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
 
         async function checkHealth() {
             try {
-                const res = await fetch('/api/health');
+                const res = await fetch(`${API_BASE}/api/health`);
                 const data = await res.json();
                 document.getElementById('health-status').innerText = `● System Ready (${data.bm25_chunks} Chunks Loaded)`;
             } catch (e) {
@@ -481,7 +494,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
 
         async function loadIndexedDocuments() {
             try {
-                const res = await fetch('/api/documents');
+                const res = await fetch(`${API_BASE}/api/documents`);
                 const docs = await res.json();
                 renderDocs(docs);
             } catch(e) {}
@@ -499,7 +512,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
             document.getElementById('answer-output').innerHTML = '<em>Executing hybrid retrieval (RRF) & cross-encoder reranking across multimodal chunks...</em>';
             
             try {
-                const res = await fetch('/api/query', {
+                const res = await fetch(`${API_BASE}/api/query`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({query: query})
@@ -518,7 +531,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
                     step4.innerText = `4. Self-Correction Loop`;
                 }
 
-                // Render Citations
+                // Render Citations with HTML escaping
                 const container = document.getElementById('citations-container');
                 container.innerHTML = '';
                 if (data.citations && data.citations.length > 0) {
@@ -526,7 +539,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
                         const div = document.createElement('div');
                         div.className = 'doc-item';
                         const ctype = c.chunk_type || "text";
-                        div.innerHTML = `<div><strong class="citation-tag">[${c.source_id}]</strong> <strong>${c.filename}</strong> <span class="type-badge badge-${ctype}">${ctype}</span>: ${c.snippet}</div><span style="color:var(--accent-cyan); font-weight:600;">Score: ${c.score.toFixed(2)}</span>`;
+                        div.innerHTML = `<div><strong class="citation-tag">[${escapeHTML(c.source_id)}]</strong> <strong>${escapeHTML(c.filename)}</strong> <span class="type-badge badge-${ctype}">${ctype}</span>: ${escapeHTML(c.snippet)}</div><span style="color:var(--accent-cyan); font-weight:600;">Score: ${c.score.toFixed(2)}</span>`;
                         container.appendChild(div);
                     });
                 } else {
@@ -582,7 +595,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
             document.getElementById('health-status').innerText = `● Parsing '${file.name}'...`;
             
             try {
-                const res = await fetch('/api/ingest/file', {
+                const res = await fetch(`${API_BASE}/api/ingest/file`, {
                     method: 'POST',
                     body: formData
                 });
@@ -612,7 +625,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
                 return;
             }
             const docId = "custom-" + Date.now();
-            const res = await fetch('/api/ingest', {
+            const res = await fetch(`${API_BASE}/api/ingest`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
@@ -658,7 +671,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
                 }
             ];
 
-            const res = await fetch('/api/ingest', {
+            const res = await fetch(`${API_BASE}/api/ingest`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({documents: sampleDocs})
@@ -680,14 +693,16 @@ WEB_UI_HTML = """<!DOCTYPE html>
                 const div = document.createElement('div');
                 div.className = 'doc-item';
                 const typesStr = Object.entries(d.types || {}).map(([t, count]) => `<span class="type-badge badge-${t}">${count} ${t}</span>`).join(' ');
-                div.innerHTML = `<div>📄 <strong>${d.filename}</strong> (${d.total_chunks} Chunks) ${typesStr}<br><span style="color:var(--text-muted); font-size:0.8rem;">Snippet: ${d.sample_snippet}</span></div><span style="color:var(--accent-emerald); font-weight:600;">Indexed</span>`;
+                const cleanName = escapeHTML(d.filename);
+                const cleanSnippet = escapeHTML(d.sample_snippet);
+                div.innerHTML = `<div>📄 <strong>${cleanName}</strong> (${d.total_chunks} Chunks) ${typesStr}<br><span style="color:var(--text-muted); font-size:0.8rem;">Snippet: ${cleanSnippet}</span></div><span style="color:var(--accent-emerald); font-weight:600;">Indexed</span>`;
                 list.appendChild(div);
             });
         }
 
         async function fetchMetrics() {
             try {
-                const res = await fetch('/api/metrics');
+                const res = await fetch(`${API_BASE}/api/metrics`);
                 const data = await res.json();
                 document.getElementById('p50-val').innerText = `${data.p50_latency_ms} ms`;
                 document.getElementById('p95-val').innerText = `${data.p95_latency_ms} ms`;
@@ -704,7 +719,7 @@ WEB_UI_HTML = """<!DOCTYPE html>
             btn.innerText = "Evaluating...";
             showNotification("Running automated RAGAS benchmark metrics...", 'info');
             try {
-                const res = await fetch('/api/evaluate', {
+                const res = await fetch(`${API_BASE}/api/evaluate`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
