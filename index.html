@@ -239,22 +239,23 @@
                 .replace(/'/g, "&#039;");
         }
 
-        function showNotification(msg, type = 'info') {
+        function showNotification(msg, type) {
+            type = type || 'info';
             const box = document.getElementById('notification-box');
             if (!box) return;
             box.innerText = msg;
-            box.className = `notification-banner banner-${type}`;
+            box.className = 'notification-banner banner-' + type;
             box.style.display = 'block';
             if (type !== 'info') {
-                setTimeout(() => { box.style.display = 'none'; }, 6000);
+                setTimeout(function() { box.style.display = 'none'; }, 6000);
             }
         }
 
         async function checkHealth() {
             try {
-                const res = await fetch(`${API_BASE}/api/health`);
+                const res = await fetch(API_BASE + '/api/health');
                 const data = await res.json();
-                document.getElementById('health-status').innerText = `● System Ready (${data.bm25_chunks} Chunks Loaded)`;
+                document.getElementById('health-status').innerText = '● System Ready (' + data.bm25_chunks + ' Chunks Loaded)';
             } catch (e) {
                 document.getElementById('health-status').innerText = '● Connecting...';
             }
@@ -263,7 +264,7 @@
 
         async function loadIndexedDocuments() {
             try {
-                const res = await fetch(`${API_BASE}/api/documents`);
+                const res = await fetch(API_BASE + '/api/documents');
                 const docs = await res.json();
                 renderDocs(docs);
             } catch(e) {}
@@ -281,7 +282,7 @@
             document.getElementById('answer-output').innerHTML = '<em>Executing hybrid retrieval (RRF) & cross-encoder reranking across multimodal chunks...</em>';
             
             try {
-                const res = await fetch(`${API_BASE}/api/query`, {
+                const res = await fetch(API_BASE + '/api/query', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({query: query})
@@ -289,26 +290,26 @@
                 const data = await res.json();
                 
                 document.getElementById('answer-output').innerText = data.answer;
-                document.getElementById('loop-count-badge').innerText = `Self-Correction Loops: ${data.self_correction_loops}`;
+                document.getElementById('loop-count-badge').innerText = 'Self-Correction Loops: ' + data.self_correction_loops;
                 
                 const step4 = document.getElementById('step-4');
                 if (data.self_correction_loops > 0) {
                     step4.className = 'step-chip looping';
-                    step4.innerText = `4. Self-Correction Loop (${data.self_correction_loops} Rewrites)`;
+                    step4.innerText = '4. Self-Correction Loop (' + data.self_correction_loops + ' Rewrites)';
                 } else {
                     step4.className = 'step-chip active';
-                    step4.innerText = `4. Self-Correction Loop`;
+                    step4.innerText = '4. Self-Correction Loop';
                 }
 
                 // Render Citations with HTML escaping
                 const container = document.getElementById('citations-container');
                 container.innerHTML = '';
                 if (data.citations && data.citations.length > 0) {
-                    data.citations.forEach(c => {
+                    data.citations.forEach(function(c) {
                         const div = document.createElement('div');
                         div.className = 'doc-item';
                         const ctype = c.chunk_type || "text";
-                        div.innerHTML = `<div><strong class="citation-tag">[${escapeHTML(c.source_id)}]</strong> <strong>${escapeHTML(c.filename)}</strong> <span class="type-badge badge-${ctype}">${ctype}</span>: ${escapeHTML(c.snippet)}</div><span style="color:var(--accent-cyan); font-weight:600;">Score: ${c.score.toFixed(2)}</span>`;
+                        div.innerHTML = '<div><strong class="citation-tag">[' + escapeHTML(c.source_id) + ']</strong> <strong>' + escapeHTML(c.filename) + '</strong> <span class="type-badge badge-' + ctype + '">' + ctype + '</span>: ' + escapeHTML(c.snippet) + '</div><span style="color:var(--accent-cyan); font-weight:600;">Score: ' + c.score.toFixed(2) + '</span>';
                         container.appendChild(div);
                     });
                 } else {
@@ -360,19 +361,19 @@
             const formData = new FormData();
             formData.append('file', file);
 
-            showNotification(`Parsing and indexing document '${file.name}' into ChromaDB & BM25...`, 'info');
-            document.getElementById('health-status').innerText = `● Parsing '${file.name}'...`;
+            showNotification('Parsing and indexing document ' + file.name + ' into ChromaDB & BM25...', 'info');
+            document.getElementById('health-status').innerText = '● Parsing ' + file.name + '...';
             
             try {
-                const res = await fetch(`${API_BASE}/api/ingest/file`, {
+                const res = await fetch(API_BASE + '/api/ingest/file', {
                     method: 'POST',
                     body: formData
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    showNotification(`File '${data.filename}' indexed into ${data.parsed_chunks_count} chunks!`, 'success');
+                    showNotification('File ' + data.filename + ' indexed into ' + data.parsed_chunks_count + ' chunks!', 'success');
                 } else {
-                    showNotification(`Upload Error: ${data.detail || "Could not parse file"}`, 'error');
+                    showNotification('Upload Error: ' + (data.detail || "Could not parse file"), 'error');
                 }
                 checkHealth();
             } catch(e) {
@@ -394,7 +395,7 @@
                 return;
             }
             const docId = "custom-" + Date.now();
-            const res = await fetch(`${API_BASE}/api/ingest`, {
+            const res = await fetch(API_BASE + '/api/ingest', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
@@ -402,7 +403,7 @@
                 })
             });
             const data = await res.json();
-            showNotification(`Document '${filename}' indexed successfully!`, 'success');
+            showNotification('Document ' + filename + ' indexed successfully!', 'success');
             document.getElementById('doc-text-input').value = '';
             toggleCustomDocForm();
             checkHealth();
@@ -424,13 +425,8 @@
                     id: "doc-code-snippet",
                     filename: "RRF_Engine.py",
                     chunk_type: "code_snippet",
-                    text: "[Code Snippet (python) in RRF_Engine.py]:\n```python\ndef compute_rrf_scores(sparse_ranks, dense_ranks, k=60):\
-    rrf = {}\
-    for doc_id, rank in sparse_ranks.items():\
-        rrf[doc_id] = rrf.get(doc_id, 0.0) + (1.0 / (k + rank))\
-    for doc_id, rank in dense_ranks.items():\
-        rrf[doc_id] = rrf.get(doc_id, 0.0) + (1.0 / (k + rank))\
-    return rrf\n```"
+                    text: "[Code Snippet (python) in RRF_Engine.py]:\n```python\ndef compute_rrf_scores(sparse_ranks, dense_ranks, k=60):\n    rrf = {}\n    for doc_id, rank in sparse_ranks.items():\n        rrf[doc_id] = rrf.get(doc_id, 0.0) + (1.0 / (k + rank))\
+    for doc_id, rank in dense_ranks.items():\n        rrf[doc_id] = rrf.get(doc_id, 0.0) + (1.0 / (k + rank))\n    return rrf\n```"
                 },
                 {
                     id: "doc-diagram-arch",
@@ -440,13 +436,13 @@
                 }
             ];
 
-            const res = await fetch(`${API_BASE}/api/ingest`, {
+            const res = await fetch(API_BASE + '/api/ingest', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({documents: sampleDocs})
             });
             const data = await res.json();
-            showNotification(`Loaded ${data.ingested_count} Multimodal Suite benchmark chunks!`, 'success');
+            showNotification('Loaded ' + data.ingested_count + ' Multimodal Suite benchmark chunks!', 'success');
             btn.disabled = false;
             checkHealth();
         }
@@ -458,24 +454,26 @@
                 list.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem;">No documents indexed yet. Drag & drop a PDF/Docx/Image file above or click Benchmark Suite.</div>';
                 return;
             }
-            docs.forEach(d => {
+            docs.forEach(function(d) {
                 const div = document.createElement('div');
                 div.className = 'doc-item';
-                const typesStr = Object.entries(d.types || {}).map(([t, count]) => `<span class="type-badge badge-${t}">${count} ${t}</span>`).join(' ');
+                const typesStr = Object.entries(d.types || {}).map(function(pair) {
+                    return '<span class="type-badge badge-' + pair[0] + '">' + pair[1] + ' ' + pair[0] + '</span>';
+                }).join(' ');
                 const cleanName = escapeHTML(d.filename);
                 const cleanSnippet = escapeHTML(d.sample_snippet);
-                div.innerHTML = `<div>📄 <strong>${cleanName}</strong> (${d.total_chunks} Chunks) ${typesStr}<br><span style="color:var(--text-muted); font-size:0.8rem;">Snippet: ${cleanSnippet}</span></div><span style="color:var(--accent-emerald); font-weight:600;">Indexed</span>`;
+                div.innerHTML = '<div>📄 <strong>' + cleanName + '</strong> (' + d.total_chunks + ' Chunks) ' + typesStr + '<br><span style="color:var(--text-muted); font-size:0.8rem;">Snippet: ' + cleanSnippet + '</span></div><span style="color:var(--accent-emerald); font-weight:600;">Indexed</span>';
                 list.appendChild(div);
             });
         }
 
         async function fetchMetrics() {
             try {
-                const res = await fetch(`${API_BASE}/api/metrics`);
+                const res = await fetch(API_BASE + '/api/metrics');
                 const data = await res.json();
-                document.getElementById('p50-val').innerText = `${data.p50_latency_ms} ms`;
-                document.getElementById('p95-val').innerText = `${data.p95_latency_ms} ms`;
-                document.getElementById('cost-val').innerText = `$${data.total_cost_usd.toFixed(4)}`;
+                document.getElementById('p50-val').innerText = data.p50_latency_ms + ' ms';
+                document.getElementById('p95-val').innerText = data.p95_latency_ms + ' ms';
+                document.getElementById('cost-val').innerText = '$' + data.total_cost_usd.toFixed(4);
                 document.getElementById('total-q-val').innerText = data.total_queries;
                 document.getElementById('prompt-tokens-val').innerText = data.total_prompt_tokens;
                 document.getElementById('completion-tokens-val').innerText = data.total_completion_tokens;
@@ -488,7 +486,7 @@
             btn.innerText = "Evaluating...";
             showNotification("Running automated RAGAS benchmark metrics...", 'info');
             try {
-                const res = await fetch(`${API_BASE}/api/evaluate`, {
+                const res = await fetch(API_BASE + '/api/evaluate', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -515,7 +513,7 @@
             }
         }
 
-        window.onload = () => {
+        window.onload = function() {
             checkHealth();
             fetchMetrics();
         };
