@@ -36,12 +36,12 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     
     # RAG Tuning Parameters
-    TOP_K_SPARSE: int = 10
-    TOP_K_DENSE: int = 10
-    TOP_K_RRF: int = 8
-    TOP_K_RERANK: int = 4
+    TOP_K_SPARSE: int = 15
+    TOP_K_DENSE: int = 15
+    TOP_K_RRF: int = 10
+    TOP_K_RERANK: int = 5
     RRF_K: int = 60
-    RELEVANCE_THRESHOLD: float = 0.50
+    RELEVANCE_THRESHOLD: float = 0.30
     MAX_SELF_CORRECTION_LOOPS: int = 2
     
     # Langfuse Telemetry

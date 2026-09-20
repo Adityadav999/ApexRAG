@@ -8,7 +8,7 @@
     <style>
         :root {
             --bg-dark: #090d16;
-            --card-bg: rgba(18, 26, 43, 0.75);
+            --card-bg: rgba(18, 26, 43, 0.82);
             --card-border: rgba(255, 255, 255, 0.08);
             --primary-glow: #6366f1;
             --accent-cyan: #06b6d4;
@@ -18,69 +18,184 @@
             --accent-purple: #a855f7;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
+            --source-border: #2563eb;
+            --source-bg: rgba(37, 99, 235, 0.10);
+            --source-header-bg: rgba(37, 99, 235, 0.20);
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; }
         body { background: var(--bg-dark); color: var(--text-main); min-height: 100vh; overflow-x: hidden; }
-        
-        .bg-glow { position: fixed; width: 600px; height: 600px; border-radius: 50%; filter: blur(140px); pointer-events: none; opacity: 0.25; z-index: 0; }
+
+        .bg-glow { position: fixed; width: 600px; height: 600px; border-radius: 50%; filter: blur(140px); pointer-events: none; opacity: 0.2; z-index: 0; }
         .glow-1 { top: -200px; left: -100px; background: radial-gradient(circle, var(--primary-glow), transparent); }
         .glow-2 { bottom: -200px; right: -100px; background: radial-gradient(circle, var(--accent-cyan), transparent); }
 
         .app-container { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 2rem; }
-        
+
         header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--card-border); }
         .logo-badge { display: flex; align-items: center; gap: 0.75rem; }
-        .logo-icon { width: 42px; height: 42px; background: linear-gradient(135deg, var(--primary-glow), var(--accent-cyan)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.2rem; box-shadow: 0 0 20px rgba(99, 102, 241, 0.4); }
+        .logo-icon { width: 42px; height: 42px; background: linear-gradient(135deg, var(--primary-glow), var(--accent-cyan)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.2rem; box-shadow: 0 0 20px rgba(99,102,241,0.4); }
         .brand-title { font-size: 1.6rem; font-weight: 700; background: linear-gradient(to right, #ffffff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .status-pill { padding: 0.4rem 0.9rem; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 20px; font-size: 0.85rem; color: var(--accent-emerald); font-weight: 600; }
+        .status-pill { padding: 0.4rem 0.9rem; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); border-radius: 20px; font-size: 0.85rem; color: var(--accent-emerald); font-weight: 600; }
 
-        .dashboard-grid { display: grid; grid-template-columns: 1fr 420px; gap: 2rem; }
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 400px; gap: 2rem; }
         @media (max-width: 1100px) { .dashboard-grid { grid-template-columns: 1fr; } }
 
-        .glass-card { background: var(--card-bg); border: 1px solid var(--card-border); backdrop-filter: blur(16px); border-radius: 16px; padding: 1.5rem; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; }
-        .card-title { font-size: 1.1rem; font-weight: 600; color: #e2e8f0; display: flex; align-items: center; gap: 0.5rem; }
+        .glass-card { background: var(--card-bg); border: 1px solid var(--card-border); backdrop-filter: blur(16px); border-radius: 16px; padding: 1.5rem; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
 
-        .query-box { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; }
-        .query-input { flex: 1; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--card-border); border-radius: 12px; padding: 0.9rem 1.2rem; color: #fff; font-size: 1rem; outline: none; transition: border-color 0.2s; }
-        .query-input:focus { border-color: var(--primary-glow); box-shadow: 0 0 15px rgba(99, 102, 241, 0.3); }
-        .btn-primary { background: linear-gradient(135deg, var(--primary-glow), #4f46e5); color: #fff; border: none; border-radius: 12px; padding: 0.9rem 1.8rem; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(99, 102, 241, 0.4); }
-        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
-        .btn-secondary { background: rgba(255,255,255,0.06); border: 1px solid var(--card-border); color: #e2e8f0; border-radius: 10px; padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; }
+        .card-title { font-size: 1.05rem; font-weight: 600; color: #e2e8f0; }
+
+        .query-box { display: flex; gap: 0.75rem; margin-bottom: 1.2rem; }
+        .query-input { flex: 1; background: rgba(15,23,42,0.85); border: 1px solid var(--card-border); border-radius: 12px; padding: 0.85rem 1.1rem; color: #fff; font-size: 0.95rem; outline: none; transition: border-color 0.2s; }
+        .query-input:focus { border-color: var(--primary-glow); box-shadow: 0 0 12px rgba(99,102,241,0.25); }
+        .btn-primary { background: linear-gradient(135deg, var(--primary-glow), #4f46e5); color: #fff; border: none; border-radius: 12px; padding: 0.85rem 1.6rem; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; white-space: nowrap; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 18px rgba(99,102,241,0.4); }
+        .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-secondary { background: rgba(255,255,255,0.06); border: 1px solid var(--card-border); color: #e2e8f0; border-radius: 10px; padding: 0.45rem 0.9rem; font-size: 0.82rem; font-weight: 500; cursor: pointer; transition: background 0.2s; }
         .btn-secondary:hover { background: rgba(255,255,255,0.12); }
 
-        .answer-box { background: rgba(15, 23, 42, 0.6); border-radius: 12px; padding: 1.2rem; min-height: 180px; margin-bottom: 1.5rem; border: 1px solid rgba(255,255,255,0.05); line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
-        .citation-tag { display: inline-block; background: rgba(6, 182, 212, 0.2); border: 1px solid rgba(6, 182, 212, 0.4); color: var(--accent-cyan); border-radius: 6px; padding: 0.1rem 0.4rem; font-size: 0.8rem; font-weight: 600; cursor: pointer; margin: 0 0.2rem; }
+        /* ── ANSWER SECTION ─────────────────────────────────────── */
+        .section-label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .section-label .dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            display: inline-block;
+        }
+        .dot-answer { background: var(--accent-emerald); }
+        .dot-sources { background: var(--source-border); }
 
-        .type-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; margin-left: 0.4rem; text-transform: uppercase; }
-        .badge-text { background: rgba(148, 163, 184, 0.2); border: 1px solid rgba(148, 163, 184, 0.4); color: #cbd5e1; }
-        .badge-table { background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: var(--accent-emerald); }
-        .badge-code_snippet { background: rgba(168, 85, 247, 0.2); border: 1px solid rgba(168, 85, 247, 0.4); color: var(--accent-purple); }
-        .badge-diagram { background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); color: var(--accent-amber); }
-        .badge-image_caption { background: rgba(244, 63, 94, 0.2); border: 1px solid rgba(244, 63, 94, 0.4); color: var(--accent-rose); }
+        .answer-box {
+            background: rgba(10, 18, 35, 0.7);
+            border: 1px solid rgba(16,185,129,0.22);
+            border-radius: 12px;
+            padding: 1.2rem 1.4rem;
+            min-height: 140px;
+            line-height: 1.75;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 0.95rem;
+            color: #e2e8f0;
+            margin-bottom: 1.5rem;
+        }
 
-        .stepper { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; overflow-x: auto; padding-bottom: 0.5rem; }
-        .step-chip { background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); border-radius: 8px; padding: 0.5rem 0.9rem; font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; font-weight: 500; transition: all 0.3s; }
-        .step-chip.active { background: rgba(99, 102, 241, 0.2); border-color: var(--primary-glow); color: #a5b4fc; }
-        .step-chip.looping { background: rgba(245, 158, 11, 0.2); border-color: var(--accent-amber); color: var(--accent-amber); }
+        /* ── SOURCES SECTION ────────────────────────────────────── */
+        .sources-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
 
-        .drop-zone { border: 2px dashed rgba(99, 102, 241, 0.4); background: rgba(15, 23, 42, 0.4); border-radius: 12px; padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 1rem; }
-        .drop-zone:hover { border-color: var(--primary-glow); background: rgba(99, 102, 241, 0.1); }
+        .source-card {
+            border: 1.5px solid var(--source-border);
+            border-radius: 12px;
+            background: var(--source-bg);
+            overflow: hidden;
+            box-shadow: 0 0 14px rgba(37,99,235,0.12);
+        }
 
-        .notification-banner { padding: 0.8rem 1.2rem; border-radius: 10px; font-size: 0.9rem; font-weight: 500; margin-bottom: 1rem; display: none; }
-        .banner-info { background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3); color: #a5b4fc; }
-        .banner-success { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: var(--accent-emerald); }
-        .banner-error { background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.3); color: var(--accent-rose); }
+        .source-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--source-header-bg);
+            padding: 0.55rem 0.9rem;
+            border-bottom: 1px solid rgba(37,99,235,0.25);
+        }
 
-        .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-        .metric-tile { background: rgba(15, 23, 42, 0.6); border: 1px solid var(--card-border); border-radius: 12px; padding: 1rem; text-align: center; }
-        .metric-value { font-size: 1.6rem; font-weight: 700; color: #fff; font-family: 'JetBrains Mono', monospace; }
-        .metric-label { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem; }
+        .source-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #93c5fd;
+            font-family: 'JetBrains Mono', monospace;
+        }
 
-        .doc-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: rgba(15, 23, 42, 0.5); border-radius: 8px; margin-bottom: 0.5rem; border: 1px solid rgba(255,255,255,0.04); font-size: 0.85rem; word-break: break-word; }
-        .form-input { width: 100%; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--card-border); border-radius: 8px; padding: 0.6rem 0.9rem; color: #fff; font-size: 0.9rem; margin-bottom: 0.75rem; outline: none; }
-        .form-textarea { width: 100%; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--card-border); border-radius: 8px; padding: 0.6rem 0.9rem; color: #fff; font-size: 0.9rem; margin-bottom: 0.75rem; outline: none; min-height: 80px; resize: vertical; }
+        .source-meta { display: flex; align-items: center; gap: 0.5rem; }
+
+        .type-badge {
+            display: inline-block;
+            padding: 0.12rem 0.45rem;
+            border-radius: 5px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .badge-text { background: rgba(148,163,184,0.18); border: 1px solid rgba(148,163,184,0.35); color: #cbd5e1; }
+        .badge-table { background: rgba(16,185,129,0.18); border: 1px solid rgba(16,185,129,0.35); color: var(--accent-emerald); }
+        .badge-code_snippet { background: rgba(168,85,247,0.18); border: 1px solid rgba(168,85,247,0.35); color: var(--accent-purple); }
+        .badge-diagram { background: rgba(245,158,11,0.18); border: 1px solid rgba(245,158,11,0.35); color: var(--accent-amber); }
+        .badge-image_caption { background: rgba(244,63,94,0.18); border: 1px solid rgba(244,63,94,0.35); color: var(--accent-rose); }
+
+        .score-chip {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 0.1rem 0.45rem;
+            border-radius: 6px;
+            background: rgba(37,99,235,0.25);
+            border: 1px solid rgba(37,99,235,0.5);
+            color: #93c5fd;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .source-card-body { padding: 0.75rem 0.9rem; }
+
+        .source-filename {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #bfdbfe;
+            margin-bottom: 0.4rem;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            word-break: break-all;
+        }
+
+        .source-snippet {
+            font-size: 0.83rem;
+            color: #94a3b8;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* ── STEPPER ────────────────────────────────────────────── */
+        .stepper { display: flex; gap: 0.4rem; margin-bottom: 1.2rem; overflow-x: auto; padding-bottom: 0.3rem; }
+        .step-chip { background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); border-radius: 7px; padding: 0.4rem 0.7rem; font-size: 0.75rem; color: var(--text-muted); font-weight: 500; transition: all 0.3s; white-space: nowrap; }
+        .step-chip.active { background: rgba(99,102,241,0.2); border-color: var(--primary-glow); color: #a5b4fc; }
+        .step-chip.looping { background: rgba(245,158,11,0.2); border-color: var(--accent-amber); color: var(--accent-amber); }
+
+        /* ── DROP ZONE ──────────────────────────────────────────── */
+        .drop-zone { border: 2px dashed rgba(99,102,241,0.4); background: rgba(15,23,42,0.4); border-radius: 12px; padding: 1.3rem; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 0.9rem; }
+        .drop-zone:hover { border-color: var(--primary-glow); background: rgba(99,102,241,0.09); }
+
+        /* ── NOTIFICATIONS ──────────────────────────────────────── */
+        .notification-banner { padding: 0.75rem 1.1rem; border-radius: 10px; font-size: 0.88rem; font-weight: 500; margin-bottom: 1rem; display: none; }
+        .banner-info { background: rgba(99,102,241,0.14); border: 1px solid rgba(99,102,241,0.3); color: #a5b4fc; }
+        .banner-success { background: rgba(16,185,129,0.14); border: 1px solid rgba(16,185,129,0.3); color: var(--accent-emerald); }
+        .banner-error { background: rgba(244,63,94,0.14); border: 1px solid rgba(244,63,94,0.3); color: var(--accent-rose); }
+
+        /* ── METRICS ────────────────────────────────────────────── */
+        .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.9rem; margin-bottom: 1.2rem; }
+        .metric-tile { background: rgba(15,23,42,0.6); border: 1px solid var(--card-border); border-radius: 12px; padding: 0.85rem; text-align: center; }
+        .metric-value { font-size: 1.45rem; font-weight: 700; color: #fff; font-family: 'JetBrains Mono', monospace; }
+        .metric-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem; }
+
+        /* ── DOCS LIST ──────────────────────────────────────────── */
+        .doc-item { display: flex; justify-content: space-between; align-items: center; padding: 0.7rem 0.85rem; background: rgba(15,23,42,0.5); border-radius: 8px; margin-bottom: 0.45rem; border: 1px solid rgba(255,255,255,0.04); font-size: 0.82rem; word-break: break-word; }
+
+        .form-input { width: 100%; background: rgba(15,23,42,0.8); border: 1px solid var(--card-border); border-radius: 8px; padding: 0.55rem 0.85rem; color: #fff; font-size: 0.88rem; margin-bottom: 0.7rem; outline: none; }
+        .form-textarea { width: 100%; background: rgba(15,23,42,0.8); border: 1px solid var(--card-border); border-radius: 8px; padding: 0.55rem 0.85rem; color: #fff; font-size: 0.88rem; margin-bottom: 0.7rem; outline: none; min-height: 75px; resize: vertical; }
     </style>
 </head>
 <body>
@@ -93,131 +208,128 @@
                 <div class="logo-icon">A</div>
                 <div>
                     <div class="brand-title">ApexRAG Multimodal Engine</div>
-                    <div style="font-size:0.8rem; color:var(--text-muted)">PDF • DOCX • Markdown • Code • Tables • Diagrams • Images</div>
+                    <div style="font-size:0.78rem; color:var(--text-muted)">PDF • DOCX • Markdown • Code • Tables • Diagrams • Images</div>
                 </div>
             </div>
             <div class="status-pill" id="health-status">● System Operational</div>
         </header>
 
-        <!-- Live Notification Banner -->
         <div class="notification-banner" id="notification-box"></div>
 
         <div class="dashboard-grid">
-            <!-- Left Column -->
+            <!-- ═══ LEFT COLUMN ══════════════════════════════════════ -->
             <div>
-                <div class="glass-card" style="margin-bottom: 2rem;">
+                <!-- Query Workbench -->
+                <div class="glass-card" style="margin-bottom:1.5rem;">
                     <div class="card-header">
-                        <div class="card-title">⚡ Interactive Multimodal Query Workbench</div>
-                        <span id="loop-count-badge" style="font-size:0.85rem; color:var(--accent-cyan); font-weight:600">Self-Correction Loops: 0</span>
+                        <div class="card-title">⚡ Multimodal Query Workbench</div>
+                        <span id="loop-count-badge" style="font-size:0.8rem; color:var(--accent-cyan); font-weight:600">Loops: 0</span>
                     </div>
 
                     <div class="query-box">
-                        <input type="text" id="query-input" class="query-input" placeholder="Ask about table data, code snippets, architectural diagrams, or text..." value="What are the key architectural components of ApexRAG?" onkeydown="if(event.key === 'Enter') runQuery()">
+                        <input type="text" id="query-input" class="query-input"
+                            placeholder="Ask anything about your uploaded documents..."
+                            value="What are the key architectural components of ApexRAG?"
+                            onkeydown="if(event.key==='Enter') runQuery()">
                         <button class="btn-primary" id="btn-execute-query" onclick="runQuery()">Execute Query</button>
                     </div>
 
-                    <!-- LangGraph Execution State Machine Steps -->
                     <div class="stepper" id="execution-stepper">
-                        <div class="step-chip active" id="step-1">1. Hybrid Retrieval (RRF)</div>
+                        <div class="step-chip active" id="step-1">1. BM25 + ChromaDB RRF</div>
                         <div class="step-chip active" id="step-2">2. Cross-Encoder Rerank</div>
                         <div class="step-chip active" id="step-3">3. Relevance Grading</div>
-                        <div class="step-chip active" id="step-4">4. Self-Correction Loop</div>
-                        <div class="step-chip active" id="step-5">5. Citation Generation</div>
+                        <div class="step-chip active" id="step-4">4. Self-Correction</div>
+                        <div class="step-chip active" id="step-5">5. Extractive Answer</div>
                     </div>
 
-                    <div class="card-title" style="font-size:0.9rem; margin-bottom:0.6rem;">Response Output:</div>
-                    <div class="answer-box" id="answer-output">Click <strong>Execute Query</strong> to run ApexRAG state machine workflow across multimodal context chunks.</div>
+                    <!-- ANSWER -->
+                    <div class="section-label" style="margin-bottom:0.5rem;">
+                        <span class="dot dot-answer"></span> Generated Answer
+                    </div>
+                    <div class="answer-box" id="answer-output">Click <strong>Execute Query</strong> to run the ApexRAG pipeline across your indexed documents.</div>
 
-                    <div class="card-title" style="font-size:0.9rem; margin-bottom:0.6rem;">Source Citations & Reranked Context Chunks:</div>
-                    <div id="citations-container" style="display:flex; flex-direction:column; gap:0.5rem;"></div>
+                    <!-- SOURCES (blue highlighted) -->
+                    <div class="section-label" style="margin-top:0.2rem; margin-bottom:0.6rem;">
+                        <span class="dot dot-sources"></span> Retrieved Sources
+                    </div>
+                    <div class="sources-wrapper" id="citations-container">
+                        <div style="color:var(--text-muted); font-size:0.82rem; padding:0.5rem;">Run a query to see source citations here.</div>
+                    </div>
                 </div>
 
-                <!-- Multimodal Knowledge Base & File Upload Zone -->
+                <!-- Document Ingestion -->
                 <div class="glass-card">
                     <div class="card-header">
-                        <div class="card-title">📁 Multimodal Document Ingestion</div>
+                        <div class="card-title">📁 Document Ingestion</div>
                         <div style="display:flex; gap:0.5rem;">
-                            <button class="btn-secondary" id="btn-toggle-custom" onclick="toggleCustomDocForm()">+ Text Doc</button>
-                            <button class="btn-primary" id="btn-load-seed" style="padding:0.5rem 1rem; font-size:0.85rem;" onclick="seedMultimodalDocs()">Load Multimodal Suite</button>
+                            <button class="btn-secondary" onclick="toggleCustomDocForm()">+ Text</button>
+                            <button class="btn-primary" id="btn-load-seed" style="padding:0.45rem 0.9rem; font-size:0.82rem;" onclick="seedMultimodalDocs()">Load Demo Suite</button>
                         </div>
                     </div>
 
-                    <!-- File Drag and Drop Zone -->
-                    <div class="drop-zone" id="drop-zone-box" onclick="document.getElementById('file-upload-input').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleFileDrop(event)">
-                        <div style="font-weight:600; font-size:1rem; margin-bottom:0.3rem;">📄 Drag & Drop or Click to Upload Whole Document</div>
-                        <div style="font-size:0.8rem; color:var(--text-muted);">Supports PDF, DOCX, Markdown, Text, Code (.py, .js, .json), and Images (.png, .jpg) up to 250MB</div>
+                    <div class="drop-zone" id="drop-zone-box"
+                        onclick="document.getElementById('file-upload-input').click()"
+                        ondragover="handleDragOver(event)"
+                        ondragleave="handleDragLeave(event)"
+                        ondrop="handleFileDrop(event)">
+                        <div style="font-weight:600; font-size:0.95rem; margin-bottom:0.25rem;">📄 Drag & Drop or Click to Upload</div>
+                        <div style="font-size:0.78rem; color:var(--text-muted);">PDF, DOCX, MD, TXT, Code (.py .js .json), Images (.png .jpg) — up to 250 MB</div>
                         <input type="file" id="file-upload-input" style="display:none" onchange="uploadSelectedFile(this.files[0])">
                     </div>
 
-                    <!-- Custom Text Form -->
-                    <div id="custom-doc-form" style="display:none; background:rgba(15,23,42,0.6); padding:1rem; border-radius:12px; margin-bottom:1rem; border:1px solid var(--card-border);">
-                        <div style="font-size:0.9rem; font-weight:600; margin-bottom:0.5rem;">Ingest Custom Text / Markdown</div>
-                        <input type="text" id="doc-filename-input" class="form-input" placeholder="Filename (e.g. System_Spec.md)">
-                        <textarea id="doc-text-input" class="form-textarea" placeholder="Paste markdown, table matrices, or code blocks..."></textarea>
-                        <button class="btn-primary" id="btn-ingest-custom" style="padding:0.5rem 1.2rem; font-size:0.85rem;" onclick="ingestCustomDocument()">Ingest Document</button>
+                    <div id="custom-doc-form" style="display:none; background:rgba(15,23,42,0.6); padding:0.9rem; border-radius:12px; margin-bottom:0.9rem; border:1px solid var(--card-border);">
+                        <div style="font-size:0.88rem; font-weight:600; margin-bottom:0.45rem;">Ingest Custom Text / Markdown</div>
+                        <input type="text" id="doc-filename-input" class="form-input" placeholder="Filename (e.g. notes.md)">
+                        <textarea id="doc-text-input" class="form-textarea" placeholder="Paste text, tables, code blocks..."></textarea>
+                        <button class="btn-primary" style="padding:0.45rem 1.1rem; font-size:0.82rem;" onclick="ingestCustomDocument()">Ingest Document</button>
                     </div>
 
                     <div id="docs-list"></div>
                 </div>
             </div>
 
-            <!-- Right Column -->
+            <!-- ═══ RIGHT COLUMN ═════════════════════════════════════ -->
             <div>
-                <!-- Observability Card -->
-                <div class="glass-card" style="margin-bottom: 2rem;">
+                <!-- Telemetry -->
+                <div class="glass-card" style="margin-bottom:1.5rem;">
                     <div class="card-header">
-                        <div class="card-title">📊 Real-Time Telemetry (Langfuse)</div>
-                        <button class="btn-secondary" id="btn-refresh-metrics" onclick="fetchMetrics()">Refresh</button>
+                        <div class="card-title">📊 Telemetry</div>
+                        <button class="btn-secondary" onclick="fetchMetrics()">Refresh</button>
                     </div>
-
                     <div class="metrics-grid">
-                        <div class="metric-tile">
-                            <div class="metric-value" id="p50-val">0 ms</div>
-                            <div class="metric-label">P50 Latency</div>
-                        </div>
-                        <div class="metric-tile">
-                            <div class="metric-value" id="p95-val">0 ms</div>
-                            <div class="metric-label">P95 Latency</div>
-                        </div>
-                        <div class="metric-tile">
-                            <div class="metric-value" id="cost-val">$0.00</div>
-                            <div class="metric-label">Est. Token Cost</div>
-                        </div>
-                        <div class="metric-tile">
-                            <div class="metric-value" id="total-q-val">0</div>
-                            <div class="metric-label">Total Requests</div>
-                        </div>
+                        <div class="metric-tile"><div class="metric-value" id="p50-val">0 ms</div><div class="metric-label">P50 Latency</div></div>
+                        <div class="metric-tile"><div class="metric-value" id="p95-val">0 ms</div><div class="metric-label">P95 Latency</div></div>
+                        <div class="metric-tile"><div class="metric-value" id="cost-val">$0.00</div><div class="metric-label">Token Cost</div></div>
+                        <div class="metric-tile"><div class="metric-value" id="total-q-val">0</div><div class="metric-label">Total Queries</div></div>
                     </div>
-
-                    <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.5rem;">Token Usage:</div>
-                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; background:rgba(15,23,42,0.5); padding:0.75rem; border-radius:8px; font-family:'JetBrains Mono', monospace;">
+                    <div style="font-size:0.82rem; color:var(--text-muted); margin-bottom:0.4rem;">Token Usage</div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.82rem; background:rgba(15,23,42,0.5); padding:0.65rem 0.85rem; border-radius:8px; font-family:'JetBrains Mono', monospace;">
                         <span>Prompt: <strong id="prompt-tokens-val">0</strong></span>
                         <span>Completion: <strong id="completion-tokens-val">0</strong></span>
                     </div>
                 </div>
 
-                <!-- RAGAS Evaluation Card -->
+                <!-- RAGAS Evaluation -->
                 <div class="glass-card">
                     <div class="card-header">
-                        <div class="card-title">🎯 RAGAS Evaluation Metrics</div>
-                        <button class="btn-primary" id="btn-run-ragas" style="padding:0.4rem 0.8rem; font-size:0.8rem;" onclick="runRagasBenchmark()">Run Evaluation</button>
+                        <div class="card-title">🎯 RAGAS Evaluation</div>
+                        <button class="btn-primary" id="btn-run-ragas" style="padding:0.38rem 0.75rem; font-size:0.78rem;" onclick="runRagasBenchmark()">Run</button>
                     </div>
-
-                    <div class="metrics-grid" style="grid-template-columns: repeat(2, 1fr);">
-                        <div class="metric-tile" style="border-color: rgba(16, 185, 129, 0.3);">
-                            <div class="metric-value" style="color:var(--accent-emerald)" id="faithfulness-score">0.96</div>
+                    <div class="metrics-grid">
+                        <div class="metric-tile" style="border-color:rgba(16,185,129,0.3);">
+                            <div class="metric-value" style="color:var(--accent-emerald)" id="faithfulness-score">—</div>
                             <div class="metric-label">Faithfulness</div>
                         </div>
-                        <div class="metric-tile" style="border-color: rgba(6, 182, 212, 0.3);">
-                            <div class="metric-value" style="color:var(--accent-cyan)" id="relevance-score">0.93</div>
+                        <div class="metric-tile" style="border-color:rgba(6,182,212,0.3);">
+                            <div class="metric-value" style="color:var(--accent-cyan)" id="relevance-score">—</div>
                             <div class="metric-label">Answer Relevance</div>
                         </div>
-                        <div class="metric-tile" style="border-color: rgba(99, 102, 241, 0.3);">
-                            <div class="metric-value" style="color:#a5b4fc" id="precision-score">0.91</div>
+                        <div class="metric-tile" style="border-color:rgba(99,102,241,0.3);">
+                            <div class="metric-value" style="color:#a5b4fc" id="precision-score">—</div>
                             <div class="metric-label">Context Precision</div>
                         </div>
-                        <div class="metric-tile" style="border-color: rgba(244, 63, 94, 0.3);">
-                            <div class="metric-value" style="color:var(--accent-rose)" id="recall-score">0.89</div>
+                        <div class="metric-tile" style="border-color:rgba(244,63,94,0.3);">
+                            <div class="metric-value" style="color:var(--accent-rose)" id="recall-score">—</div>
                             <div class="metric-label">Context Recall</div>
                         </div>
                     </div>
@@ -255,7 +367,7 @@
             try {
                 const res = await fetch(API_BASE + '/api/health');
                 const data = await res.json();
-                document.getElementById('health-status').innerText = '● System Ready (' + data.bm25_chunks + ' Chunks Loaded)';
+                document.getElementById('health-status').innerText = '● Ready (' + data.bm25_chunks + ' chunks)';
             } catch (e) {
                 document.getElementById('health-status').innerText = '● Connecting...';
             }
@@ -270,6 +382,34 @@
             } catch(e) {}
         }
 
+        function renderSourceCard(c, idx) {
+            const ctype = c.chunk_type || "text";
+            const score = typeof c.score === 'number' ? c.score.toFixed(3) : '—';
+            const filename = escapeHTML(c.filename || '');
+            const snippet = escapeHTML(c.snippet || '');
+            const page = c.page ? ' &nbsp;·&nbsp; Page ' + c.page : '';
+
+            return '<div class="source-card">' +
+                '<div class="source-card-header">' +
+                    '<span class="source-badge">' +
+                        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
+                        ' Source ' + idx +
+                    '</span>' +
+                    '<div class="source-meta">' +
+                        '<span class="type-badge badge-' + ctype + '">' + ctype + '</span>' +
+                        '<span class="score-chip">score: ' + score + '</span>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="source-card-body">' +
+                    '<div class="source-filename">' +
+                        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>' +
+                        filename + page +
+                    '</div>' +
+                    '<div class="source-snippet">' + snippet + '</div>' +
+                '</div>' +
+            '</div>';
+        }
+
         async function runQuery() {
             const queryInput = document.getElementById('query-input');
             const btn = document.getElementById('btn-execute-query');
@@ -278,9 +418,10 @@
 
             btn.disabled = true;
             btn.innerText = "Running...";
-            showNotification("Executing LangGraph hybrid retrieval (BM25 + ChromaDB RRF) & cross-encoder reranking...", 'info');
-            document.getElementById('answer-output').innerHTML = '<em>Executing hybrid retrieval (RRF) & cross-encoder reranking across multimodal chunks...</em>';
-            
+            showNotification("Running hybrid retrieval + cross-encoder reranking + extractive synthesis...", 'info');
+            document.getElementById('answer-output').innerHTML = '<em style="color:var(--text-muted)">Processing your query through the RAG pipeline...</em>';
+            document.getElementById('citations-container').innerHTML = '<div style="color:var(--text-muted); font-size:0.82rem; padding:0.5rem;">Retrieving sources...</div>';
+
             try {
                 const res = await fetch(API_BASE + '/api/query', {
                     method: 'POST',
@@ -288,38 +429,35 @@
                     body: JSON.stringify({query: query})
                 });
                 const data = await res.json();
-                
+
                 document.getElementById('answer-output').innerText = data.answer;
-                document.getElementById('loop-count-badge').innerText = 'Self-Correction Loops: ' + data.self_correction_loops;
-                
+                document.getElementById('loop-count-badge').innerText = 'Loops: ' + data.self_correction_loops;
+
                 const step4 = document.getElementById('step-4');
                 if (data.self_correction_loops > 0) {
                     step4.className = 'step-chip looping';
-                    step4.innerText = '4. Self-Correction Loop (' + data.self_correction_loops + ' Rewrites)';
+                    step4.innerText = '4. Self-Correction (' + data.self_correction_loops + 'x)';
                 } else {
                     step4.className = 'step-chip active';
-                    step4.innerText = '4. Self-Correction Loop';
+                    step4.innerText = '4. Self-Correction';
                 }
 
-                // Render Citations with HTML escaping
                 const container = document.getElementById('citations-container');
                 container.innerHTML = '';
                 if (data.citations && data.citations.length > 0) {
-                    data.citations.forEach(function(c) {
-                        const div = document.createElement('div');
-                        div.className = 'doc-item';
-                        const ctype = c.chunk_type || "text";
-                        div.innerHTML = '<div><strong class="citation-tag">[' + escapeHTML(c.source_id) + ']</strong> <strong>' + escapeHTML(c.filename) + '</strong> <span class="type-badge badge-' + ctype + '">' + ctype + '</span>: ' + escapeHTML(c.snippet) + '</div><span style="color:var(--accent-cyan); font-weight:600;">Score: ' + c.score.toFixed(2) + '</span>';
-                        container.appendChild(div);
+                    let html = '';
+                    data.citations.forEach(function(c, i) {
+                        html += renderSourceCard(c, i + 1);
                     });
+                    container.innerHTML = html;
                 } else {
-                    container.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem;">No citations available for this query.</div>';
+                    container.innerHTML = '<div style="color:var(--text-muted); font-size:0.82rem; padding:0.5rem;">No source citations found. Upload documents first, then query again.</div>';
                 }
 
-                showNotification("Query executed successfully!", 'success');
+                showNotification("Query completed successfully!", 'success');
                 fetchMetrics();
             } catch (e) {
-                document.getElementById('answer-output').innerText = 'Error executing query: ' + e.message;
+                document.getElementById('answer-output').innerText = 'Error: ' + e.message;
                 showNotification("Query Error: " + e.message, 'error');
             } finally {
                 btn.disabled = false;
@@ -331,20 +469,14 @@
             e.preventDefault();
             e.stopPropagation();
             const box = document.getElementById('drop-zone-box');
-            if (box) {
-                box.style.borderColor = 'var(--accent-emerald)';
-                box.style.background = 'rgba(16, 185, 129, 0.15)';
-            }
+            if (box) { box.style.borderColor = 'var(--accent-emerald)'; box.style.background = 'rgba(16,185,129,0.1)'; }
         }
 
         function handleDragLeave(e) {
             e.preventDefault();
             e.stopPropagation();
             const box = document.getElementById('drop-zone-box');
-            if (box) {
-                box.style.borderColor = 'rgba(99, 102, 241, 0.4)';
-                box.style.background = 'rgba(15, 23, 42, 0.4)';
-            }
+            if (box) { box.style.borderColor = 'rgba(99,102,241,0.4)'; box.style.background = 'rgba(15,23,42,0.4)'; }
         }
 
         function handleFileDrop(e) {
@@ -360,24 +492,19 @@
             if (!file) return;
             const formData = new FormData();
             formData.append('file', file);
-
-            showNotification('Parsing and indexing document ' + file.name + ' into ChromaDB & BM25...', 'info');
+            showNotification('Parsing and indexing ' + file.name + '...', 'info');
             document.getElementById('health-status').innerText = '● Parsing ' + file.name + '...';
-            
             try {
-                const res = await fetch(API_BASE + '/api/ingest/file', {
-                    method: 'POST',
-                    body: formData
-                });
+                const res = await fetch(API_BASE + '/api/ingest/file', { method: 'POST', body: formData });
                 const data = await res.json();
                 if (res.ok) {
-                    showNotification('File ' + data.filename + ' indexed into ' + data.parsed_chunks_count + ' chunks!', 'success');
+                    showNotification('Indexed ' + data.filename + ' into ' + data.parsed_chunks_count + ' chunks!', 'success');
                 } else {
-                    showNotification('Upload Error: ' + (data.detail || "Could not parse file"), 'error');
+                    showNotification('Upload Error: ' + (data.detail || 'Could not parse file'), 'error');
                 }
                 checkHealth();
             } catch(e) {
-                showNotification("File Upload Error: " + e.message, 'error');
+                showNotification('Upload Error: ' + e.message, 'error');
                 checkHealth();
             }
         }
@@ -388,22 +515,17 @@
         }
 
         async function ingestCustomDocument() {
-            const filename = document.getElementById('doc-filename-input').value || "CustomDoc.md";
+            const filename = document.getElementById('doc-filename-input').value || 'CustomDoc.md';
             const text = document.getElementById('doc-text-input').value;
-            if (!text.trim()) {
-                showNotification("Please enter text content to ingest.", 'error');
-                return;
-            }
-            const docId = "custom-" + Date.now();
+            if (!text.trim()) { showNotification('Please enter text content.', 'error'); return; }
+            const docId = 'custom-' + Date.now();
             const res = await fetch(API_BASE + '/api/ingest', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    documents: [{ id: docId, filename: filename, text: text }]
-                })
+                body: JSON.stringify({ documents: [{ id: docId, filename: filename, text: text }] })
             });
-            const data = await res.json();
-            showNotification('Document ' + filename + ' indexed successfully!', 'success');
+            await res.json();
+            showNotification('Document ' + filename + ' indexed!', 'success');
             document.getElementById('doc-text-input').value = '';
             toggleCustomDocForm();
             checkHealth();
@@ -412,54 +534,40 @@
         async function seedMultimodalDocs() {
             const btn = document.getElementById('btn-load-seed');
             btn.disabled = true;
-            showNotification("Loading Multimodal Suite benchmark chunks (Tables, Code, Diagrams)...", 'info');
-
+            showNotification('Loading demo benchmark chunks...', 'info');
             const sampleDocs = [
                 {
-                    id: "doc-table-spec",
-                    filename: "Performance_Benchmark_Table.md",
-                    chunk_type: "table",
-                    text: "[Table from System Specs]:\n| Module | Latency (P50) | Latency (P95) | Accuracy |\n| --- | --- | --- | --- |\n| Hybrid RRF | 12 ms | 28 ms | 98.4% |\n| Cross-Encoder Reranker | 45 ms | 82 ms | 99.1% |\n| LangGraph Self-Correction | 110 ms | 240 ms | 99.8% |"
+                    id: 'doc-table-spec',
+                    filename: 'Performance_Benchmark_Table.md',
+                    chunk_type: 'table',
+                    text: '[Table: ApexRAG Performance Benchmarks]\n| Module | P50 Latency | P95 Latency | Accuracy |\n| --- | --- | --- | --- |\n| Hybrid RRF Retrieval | 12 ms | 28 ms | 98.4% |\n| Cross-Encoder Reranker | 45 ms | 82 ms | 99.1% |\n| LangGraph Self-Correction | 110 ms | 240 ms | 99.8% |\n| Full RAG Pipeline | 167 ms | 350 ms | 99.6% |'
                 },
                 {
-                    id: "doc-code-snippet",
-                    filename: "RRF_Engine.py",
-                    chunk_type: "code_snippet",
-                    text: "[Code Snippet (python) in RRF_Engine.py]:\n" +
-                          "```python\n" +
-                          "def compute_rrf_scores(sparse_ranks, dense_ranks, k=60):\n" +
-                          "    rrf = {}\n" +
-                          "    for doc_id, rank in sparse_ranks.items():\n" +
-                          "        rrf[doc_id] = rrf.get(doc_id, 0.0) + (1.0 / (k + rank))\n" +
-                          "    for doc_id, rank in dense_ranks.items():\n" +
-                          "        rrf[doc_id] = rrf.get(doc_id, 0.0) + (1.0 / (k + rank))\n" +
-                          "    return rrf\n" +
-                          "```"
+                    id: 'doc-arch-overview',
+                    filename: 'ApexRAG_Architecture_Overview.md',
+                    chunk_type: 'text',
+                    text: 'ApexRAG Architecture Overview\n\nApexRAG is a production-grade Retrieval-Augmented Generation system. Its key architectural components are:\n1. Hybrid Retrieval Engine: Combines BM25 sparse keyword search with ChromaDB dense vector search, fused using Reciprocal Rank Fusion (RRF) scoring.\n2. Cross-Encoder Reranker: Uses the ms-marco-MiniLM-L-6-v2 model to rerank the top-K retrieved chunks by semantic relevance.\n3. LangGraph State Machine: Orchestrates the workflow with a self-correction loop that rewrites queries when relevance scores are too low.\n4. Extractive QA Engine: Produces precise answers by extracting the most relevant sentences from source documents.\n5. Langfuse Telemetry: Tracks latency (P50/P95), token usage, and USD cost per request.'
                 },
                 {
-                    id: "doc-diagram-arch",
-                    filename: "System_Architecture_Diagram.md",
-                    chunk_type: "diagram",
-                    text: "[Diagram (mermaid) in Architecture_Diagram.md]:\n" +
-                          "```mermaid\n" +
-                          "graph TD\n" +
-                          "    Query --> HybridRetrieval[BM25 + ChromaDB RRF]\n" +
-                          "    HybridRetrieval --> Reranker[Cross-Encoder MiniLM]\n" +
-                          "    Reranker --> SelfCorrection{Relevance Score >= 0.50?}\n" +
-                          "    SelfCorrection -- Yes --> LLM[LLM Generator]\n" +
-                          "    SelfCorrection -- No --> Rewrite[Query Expansion]\n" +
-                          "    Rewrite --> HybridRetrieval\n" +
-                          "```"
+                    id: 'doc-code-rrf',
+                    filename: 'RRF_Engine.py',
+                    chunk_type: 'code_snippet',
+                    text: '[Code: Reciprocal Rank Fusion Algorithm]\ndef compute_rrf_scores(sparse_ranks, dense_ranks, k=60):\n    """Fuse sparse BM25 and dense vector search rankings using RRF."""\n    rrf = {}\n    for doc_id, rank in sparse_ranks.items():\n        rrf[doc_id] = rrf.get(doc_id, 0.0) + (1.0 / (k + rank))\n    for doc_id, rank in dense_ranks.items():\n        rrf[doc_id] = rrf.get(doc_id, 0.0) + (1.0 / (k + rank))\n    return sorted(rrf.items(), key=lambda x: x[1], reverse=True)'
+                },
+                {
+                    id: 'doc-ragas-scores',
+                    filename: 'RAGAS_Evaluation_Report.md',
+                    chunk_type: 'text',
+                    text: 'RAGAS Evaluation Results for ApexRAG v1.3\n\nFaithfulness Score: 0.96 - The generated answers stay faithful to retrieved source documents with minimal hallucination.\nAnswer Relevance Score: 0.93 - Answers are highly relevant to the user query.\nContext Precision Score: 0.91 - Retrieved chunks are mostly precise and on-topic.\nContext Recall Score: 0.89 - Most relevant information from the corpus is retrieved.\n\nEvaluation conducted on a 50-question benchmark derived from the indexed technical documentation.'
                 }
             ];
-
             const res = await fetch(API_BASE + '/api/ingest', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({documents: sampleDocs})
             });
             const data = await res.json();
-            showNotification('Loaded ' + data.ingested_count + ' Multimodal Suite benchmark chunks!', 'success');
+            showNotification('Loaded ' + data.ingested_count + ' demo chunks!', 'success');
             btn.disabled = false;
             checkHealth();
         }
@@ -468,7 +576,7 @@
             const list = document.getElementById('docs-list');
             list.innerHTML = '';
             if (!docs || docs.length === 0) {
-                list.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem;">No documents indexed yet. Drag & drop a PDF/Docx/Image file above or click Benchmark Suite.</div>';
+                list.innerHTML = '<div style="color:var(--text-muted); font-size:0.82rem;">No documents indexed. Upload a file or load the Demo Suite.</div>';
                 return;
             }
             docs.forEach(function(d) {
@@ -477,9 +585,8 @@
                 const typesStr = Object.entries(d.types || {}).map(function(pair) {
                     return '<span class="type-badge badge-' + pair[0] + '">' + pair[1] + ' ' + pair[0] + '</span>';
                 }).join(' ');
-                const cleanName = escapeHTML(d.filename);
-                const cleanSnippet = escapeHTML(d.sample_snippet);
-                div.innerHTML = '<div>📄 <strong>' + cleanName + '</strong> (' + d.total_chunks + ' Chunks) ' + typesStr + '<br><span style="color:var(--text-muted); font-size:0.8rem;">Snippet: ' + cleanSnippet + '</span></div><span style="color:var(--accent-emerald); font-weight:600;">Indexed</span>';
+                div.innerHTML = '<div>📄 <strong>' + escapeHTML(d.filename) + '</strong> (' + d.total_chunks + ' chunks) ' + typesStr + '</div>' +
+                    '<span style="color:var(--accent-emerald); font-size:0.78rem; font-weight:600; white-space:nowrap;">Indexed</span>';
                 list.appendChild(div);
             });
         }
@@ -500,20 +607,18 @@
         async function runRagasBenchmark() {
             const btn = document.getElementById('btn-run-ragas');
             btn.disabled = true;
-            btn.innerText = "Evaluating...";
-            showNotification("Running automated RAGAS benchmark metrics...", 'info');
+            btn.innerText = "Running...";
+            showNotification("Running RAGAS evaluation...", 'info');
             try {
                 const res = await fetch(API_BASE + '/api/evaluate', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        samples: [
-                            {
-                                user_input: "What is the P50 latency of Hybrid RRF in the performance table?",
-                                response: "According to the performance table [Source 1], the P50 latency of Hybrid RRF is 12 ms.",
-                                retrieved_contexts: ["| Hybrid RRF | 12 ms | 28 ms | 98.4% |"]
-                            }
-                        ]
+                        samples: [{
+                            user_input: "What is the P50 latency of the Hybrid RRF module?",
+                            response: "The P50 latency of Hybrid RRF Retrieval is 12 ms according to the performance table [Source 1].",
+                            retrieved_contexts: ["| Hybrid RRF Retrieval | 12 ms | 28 ms | 98.4% |"]
+                        }]
                     })
                 });
                 const report = await res.json();
@@ -521,12 +626,12 @@
                 document.getElementById('relevance-score').innerText = report.answer_relevance_score;
                 document.getElementById('precision-score').innerText = report.context_precision_score;
                 document.getElementById('recall-score').innerText = report.context_recall_score;
-                showNotification("RAGAS Evaluation completed successfully!", 'success');
+                showNotification("RAGAS evaluation complete!", 'success');
             } catch(e) {
                 showNotification("Evaluation error: " + e.message, 'error');
             } finally {
                 btn.disabled = false;
-                btn.innerText = "Run Evaluation";
+                btn.innerText = "Run";
             }
         }
 
